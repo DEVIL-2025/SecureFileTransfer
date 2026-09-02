@@ -23,9 +23,9 @@ def generate_key():
     username = session['username']
     data = request.get_json(silent=True) or {}
     try:
-        expiry = int(data.get('expiry_minutes', 15))
+        expiry = int(data.get('expiry_minutes', 5))
     except (ValueError, TypeError):
-        expiry = 15
+        expiry = 5
     
     try:
         key_info = generate_connection_key(username, expiry_minutes=expiry)

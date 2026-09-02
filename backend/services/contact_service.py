@@ -36,7 +36,7 @@ def _record_failed_attempt(identifier: str):
     attempts.append(now)
     _failed_attempts[identifier] = attempts
 
-def generate_connection_key(owner_username: str, expiry_minutes: int = 15):
+def generate_connection_key(owner_username: str, expiry_minutes: int = 5):
     """
     Generates a one-time cryptographically secure pairing key (format: XXXX-XXXX-XXXX).
     Stores only the SHA-256 hash in the database.

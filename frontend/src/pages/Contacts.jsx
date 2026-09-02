@@ -109,9 +109,9 @@ export default function Contacts() {
     setGenerating(true);
     setCopied(false);
     try {
-      const res = await api.post('/contacts/key', { expiry_minutes: 15 });
+      const res = await api.post('/contacts/key', { expiry_minutes: 5 });
       const keyStr = res.data.key;
-      const expiresInSec = res.data.expires_in_seconds || 900;
+      const expiresInSec = res.data.expires_in_seconds || 300;
       const targetExpTime = Date.now() + expiresInSec * 1000;
       
       setGeneratedKey(keyStr);
@@ -416,7 +416,7 @@ export default function Contacts() {
 
                   <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#0077B6]">
                     <Clock className="w-4 h-4" />
-                    <span>Expires in: {timeLeft || '15:00'}</span>
+                    <span>Expires in: {timeLeft || '05:00'}</span>
                   </div>
 
                   <div className="flex justify-center gap-3 pt-2">
@@ -452,7 +452,7 @@ export default function Contacts() {
               )}
 
               <p className="text-xs text-slate-500 font-medium">
-                The key expires in 15 minutes and will be invalidated immediately after single use.
+                The key expires in 5 minutes and will be invalidated immediately after single use.
               </p>
             </div>
           )}
