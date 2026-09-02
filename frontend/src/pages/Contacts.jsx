@@ -83,13 +83,12 @@ export default function Contacts() {
     }
 
     const updateTimer = () => {
-      const now = new Date().getTime();
-      const exp = new Date(keyExpiresAt).getTime();
+      const now = Date.now();
+      const exp = typeof keyExpiresAt === 'number' ? keyExpiresAt : new Date(keyExpiresAt).getTime();
       const diff = Math.max(0, Math.floor((exp - now) / 1000));
       
       if (diff <= 0) {
         setTimeLeft('Expired');
-        setGeneratedKey(null);
         if (timerRef.current) clearInterval(timerRef.current);
       } else {
         const mins = Math.floor(diff / 60).toString().padStart(2, '0');
@@ -111,8 +110,12 @@ export default function Contacts() {
     setCopied(false);
     try {
       const res = await api.post('/contacts/key', { expiry_minutes: 15 });
-      setGeneratedKey(res.data.key);
-      setKeyExpiresAt(res.data.expires_at);
+      const keyStr = res.data.key;
+      const expiresInSec = res.data.expires_in_seconds || 900;
+      const targetExpTime = Date.now() + expiresInSec * 1000;
+      
+      setGeneratedKey(keyStr);
+      setKeyExpiresAt(targetExpTime);
       showToast('New temporary connection key generated!');
     } catch (err) {
       showToast(err.message, 'error');

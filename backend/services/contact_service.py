@@ -62,9 +62,12 @@ def generate_connection_key(owner_username: str, expiry_minutes: int = 15):
         (owner_username, key_hash, expires_at)
     )
     
+    # ISO 8601 UTC with explicit 'Z' suffix
+    iso_str = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    
     return {
         'raw_key': raw_key,
-        'expires_at': expires_at.isoformat(),
+        'expires_at': iso_str,
         'expires_in_seconds': int(expiry_minutes * 60)
     }
 
@@ -105,9 +108,10 @@ def get_active_connection_key(owner_username: str):
         return None
         
     remaining_seconds = max(0, int((exp_dt - now).total_seconds()))
+    iso_str = exp_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
         'has_active_key': True,
-        'expires_at': exp_dt.isoformat(),
+        'expires_at': iso_str,
         'expires_in_seconds': remaining_seconds
     }
 
