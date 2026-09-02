@@ -67,6 +67,7 @@ def download_file(file_id):
         mimetype=file_info['mime_type']
     )
 
+@file_bp.route('/<int:file_id>', methods=['DELETE'])
 @file_bp.route('/delete/<int:file_id>', methods=['POST', 'DELETE'])
 def delete_file(file_id):
     auth_err = login_required_check()

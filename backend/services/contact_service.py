@@ -3,7 +3,7 @@ import string
 import hashlib
 import time
 from datetime import datetime, timedelta, timezone
-from backend.database.connection import execute_query, get_db, is_postgres
+from backend.database.connection import execute_query, get_db
 from backend.socket.transfer_socket import active_users
 
 # In-memory rate limiting: identifier (username or IP) -> list of failed timestamps
@@ -15,7 +15,6 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 KEY_CHARSET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
 def _get_utc_now():
-    # Naive UTC datetime for consistent cross-database compatibility (SQLite & PostgreSQL)
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def _hash_key(raw_key: str) -> str:
@@ -184,31 +183,32 @@ def consume_connection_key(consumer_username: str, raw_key: str, client_ip: str 
         
     conn = get_db()
     try:
-        postgres = is_postgres()
         cursor = conn.cursor()
         
-        update_query = "UPDATE connection_keys SET used_at = CURRENT_TIMESTAMP, used_by = %s WHERE id = %s AND used_at IS NULL"
-        if not postgres:
-            update_query = update_query.replace("%s", "?")
-        cursor.execute(update_query, (consumer_username, key_id))
-        
+        # 1. Update key record
+        cursor.execute(
+            "UPDATE connection_keys SET used_at = CURRENT_TIMESTAMP, used_by = %s WHERE id = %s AND used_at IS NULL",
+            (consumer_username, key_id)
+        )
         if cursor.rowcount == 0:
             return False, "This connection key has already been used.", None
             
-        insert_contact = "INSERT INTO user_contacts (user_a, user_b) VALUES (%s, %s)"
-        if not postgres:
-            insert_contact = insert_contact.replace("%s", "?")
-        cursor.execute(insert_contact, (u_a, u_b))
+        # 2. Insert contact relationship
+        cursor.execute(
+            "INSERT INTO user_contacts (user_a, user_b) VALUES (%s, %s)",
+            (u_a, u_b)
+        )
         
-        log_query = "INSERT INTO audit_logs (username, action, details, ip_address) VALUES (%s, %s, %s, %s)"
-        if not postgres:
-            log_query = log_query.replace("%s", "?")
-        cursor.execute(log_query, (
-            consumer_username,
-            "ESTABLISH_CONTACT",
-            f"Connected with @{owner_username} via connection key #{key_id}",
-            client_ip
-        ))
+        # 3. Log in audit_logs
+        cursor.execute(
+            "INSERT INTO audit_logs (username, action, details, ip_address) VALUES (%s, %s, %s, %s)",
+            (
+                consumer_username,
+                "ESTABLISH_CONTACT",
+                f"Connected with @{owner_username} via connection key #{key_id}",
+                client_ip
+            )
+        )
         conn.commit()
     finally:
         conn.close()
