@@ -38,10 +38,10 @@ This guide walks you through deploying your **Secure File Transfer** web applica
      ```bash
      pip install -r requirements.txt
      ```
-   - **Start Command:**
-     ```bash
-     python app.py
-     ```
+    - **Start Command:**
+      ```bash
+      gunicorn --worker-class gthread --threads 100 -w 1 backend.app:app
+      ```
    - **Plan:** `Free`
 
 6. Under **Environment Variables**, add the following 4 keys:
