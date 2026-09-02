@@ -117,31 +117,58 @@ def init_db():
             if "status" not in transfer_cols:
                 cursor.execute("ALTER TABLE transfers ADD COLUMN status TEXT DEFAULT 'completed'")
         else:
-            # Execute PostgreSQL schema
-            cursor.execute(schema_sql)
-            
-            # Safe column migrations for PostgreSQL if tables existed previously
+            # First, ensure base tables and core columns exist
+            base_setup = [
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(80) UNIQUE,
+                    email VARCHAR(255) UNIQUE,
+                    password VARCHAR(255),
+                    sent INTEGER DEFAULT 0,
+                    received INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """,
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(80) UNIQUE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS sent INTEGER DEFAULT 0;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS received INTEGER DEFAULT 0;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"
+            ]
+            for stmt in base_setup:
+                try:
+                    cursor.execute(stmt)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+            # Execute individual schema statements safely
+            statements = [s.strip() for s in schema_sql.split(';') if s.strip()]
+            for stmt in statements:
+                try:
+                    cursor.execute(stmt)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+            # Final column sanity migrations
             postgres_migrations = [
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(80) UNIQUE",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS sent INTEGER DEFAULT 0",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS received INTEGER DEFAULT 0",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-                "ALTER TABLE files ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255) DEFAULT ''",
-                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0",
-                "ALTER TABLE files ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) DEFAULT 'application/octet-stream'",
-                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_key TEXT DEFAULT ''",
-                "ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0",
-                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'completed'",
-                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255) DEFAULT '';",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) DEFAULT 'application/octet-stream';",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_key TEXT DEFAULT '';",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'completed';",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"
             ]
             for stmt in postgres_migrations:
                 try:
                     cursor.execute(stmt)
+                    conn.commit()
                 except Exception:
-                    pass
-            conn.commit()
-            
+                    conn.rollback()
+                    
     print(f"Database initialized successfully ({'PostgreSQL' if is_postgres() else 'SQLite'}).")
