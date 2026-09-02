@@ -352,6 +352,18 @@ export default function TransferRoom() {
                   </div>
                 </div>
 
+                {/* Download / Open File Button if Complete */}
+                {transferState.downloadUrl && (
+                  <a
+                    href={transferState.downloadUrl}
+                    download={transferState.downloadName || transferState.fileName}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white font-bold text-xs uppercase transition-all shadow-xs cursor-pointer"
+                  >
+                    <ArrowDownCircle className="w-4 h-4" />
+                    <span>Open / Save {transferState.downloadName || 'File'}</span>
+                  </a>
+                )}
+
                 {/* Cancel Button */}
                 {transferState.active && (
                   <button

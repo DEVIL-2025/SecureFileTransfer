@@ -1,17 +1,21 @@
 /**
- * WebRTC P2P DataChannel Manager for High-Speed Large & Small File Streaming
- * Strict adherence to 64KB RTCDataChannel SCTP frame limits + Backpressure flow control
+ * WebRTC P2P DataChannel Manager for High-Speed Direct P2P File Streaming
+ * Full wire-speed direct browser-to-browser data transfer with STUN hole-punching
  */
 
 const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
-  ]
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ],
+  iceCandidatePoolSize: 10
 };
 
-// Optimal Backpressure Threshold (512 KB) for continuous saturation without queue bloat
+// 512 KB buffer threshold for optimal continuous throughput
 const BUFFERED_AMOUNT_LOW_THRESHOLD = 512 * 1024;
 
 export class WebRtcPeer {
@@ -26,6 +30,7 @@ export class WebRtcPeer {
     this.dataChannel = null;
     this.isOpen = false;
     this.queuedCandidates = [];
+    this.makingOffer = false;
 
     this._setupPeerConnection();
   }
@@ -45,8 +50,8 @@ export class WebRtcPeer {
     };
 
     this.pc.onconnectionstatechange = () => {
-      console.log(`[WebRTC] Connection with @${this.peerUsername}: ${this.pc.connectionState}`);
-      if (['disconnected', 'failed', 'closed'].includes(this.pc.connectionState)) {
+      const state = this.pc.connectionState;
+      if (['disconnected', 'failed', 'closed'].includes(state)) {
         this.isOpen = false;
         if (this.onChannelClose) this.onChannelClose();
       }
@@ -58,14 +63,17 @@ export class WebRtcPeer {
     this.dataChannel.binaryType = 'arraybuffer';
     this.dataChannel.bufferedAmountLowThreshold = BUFFERED_AMOUNT_LOW_THRESHOLD;
 
+    if (channel.readyState === 'open') {
+      this.isOpen = true;
+      if (this.onChannelOpen) this.onChannelOpen();
+    }
+
     this.dataChannel.onopen = () => {
-      console.log(`[WebRTC] P2P DataChannel OPEN with @${this.peerUsername} ⚡`);
       this.isOpen = true;
       if (this.onChannelOpen) this.onChannelOpen();
     };
 
     this.dataChannel.onclose = () => {
-      console.log(`[WebRTC] P2P DataChannel CLOSED with @${this.peerUsername}`);
       this.isOpen = false;
       if (this.onChannelClose) this.onChannelClose();
     };
@@ -83,52 +91,76 @@ export class WebRtcPeer {
 
   async createOffer() {
     if (this.dataChannel && this.dataChannel.readyState === 'open') return;
+    if (this.makingOffer) return;
 
-    const channel = this.pc.createDataChannel('fileTransferChannel', {
-      ordered: true
-    });
-    this._setupDataChannel(channel);
+    try {
+      this.makingOffer = true;
+      const channel = this.pc.createDataChannel('fileTransferChannel', {
+        ordered: true
+      });
+      this._setupDataChannel(channel);
 
-    const offer = await this.pc.createOffer();
-    await this.pc.setLocalDescription(offer);
+      const offer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(offer);
 
-    this.socket.emit('webrtc_offer', {
-      to: this.peerUsername,
-      sdp: offer
-    });
+      this.socket.emit('webrtc_offer', {
+        to: this.peerUsername,
+        sdp: this.pc.localDescription
+      });
+    } catch (err) {
+      console.error('[WebRTC] createOffer error:', err);
+    } finally {
+      this.makingOffer = false;
+    }
   }
 
   async handleOffer(offerSdp) {
-    await this.pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
-    
-    while (this.queuedCandidates.length > 0) {
-      const c = this.queuedCandidates.shift();
-      await this.pc.addIceCandidate(c);
+    try {
+      await this.pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      await this._flushQueuedCandidates();
+
+      const answer = await this.pc.createAnswer();
+      await this.pc.setLocalDescription(answer);
+
+      this.socket.emit('webrtc_answer', {
+        to: this.peerUsername,
+        sdp: this.pc.localDescription
+      });
+    } catch (err) {
+      console.error('[WebRTC] handleOffer error:', err);
     }
-
-    const answer = await this.pc.createAnswer();
-    await this.pc.setLocalDescription(answer);
-
-    this.socket.emit('webrtc_answer', {
-      to: this.peerUsername,
-      sdp: answer
-    });
   }
 
   async handleAnswer(answerSdp) {
-    await this.pc.setRemoteDescription(new RTCSessionDescription(answerSdp));
-    
-    while (this.queuedCandidates.length > 0) {
-      const c = this.queuedCandidates.shift();
-      await this.pc.addIceCandidate(c);
+    try {
+      await this.pc.setRemoteDescription(new RTCSessionDescription(answerSdp));
+      await this._flushQueuedCandidates();
+    } catch (err) {
+      console.error('[WebRTC] handleAnswer error:', err);
     }
   }
 
   async addIceCandidate(candidate) {
-    if (this.pc.remoteDescription) {
-      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } else {
-      this.queuedCandidates.push(new RTCIceCandidate(candidate));
+    if (!candidate) return;
+    try {
+      if (this.pc && this.pc.remoteDescription && this.pc.remoteDescription.type) {
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        this.queuedCandidates.push(candidate);
+      }
+    } catch (e) {
+      console.warn('[WebRTC] addIceCandidate error:', e);
+    }
+  }
+
+  async _flushQueuedCandidates() {
+    while (this.queuedCandidates.length > 0) {
+      const c = this.queuedCandidates.shift();
+      try {
+        await this.pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch (e) {
+        console.warn('[WebRTC] flush candidate error:', e);
+      }
     }
   }
 
@@ -137,13 +169,21 @@ export class WebRtcPeer {
       throw new Error('DataChannel is not open');
     }
 
-    // Backpressure flow control: pause if internal buffer exceeds threshold
+    // Backpressure flow control
     if (this.dataChannel.bufferedAmount > BUFFERED_AMOUNT_LOW_THRESHOLD) {
       await new Promise((resolve) => {
+        let timeoutId;
         const handler = () => {
+          clearTimeout(timeoutId);
           this.dataChannel.removeEventListener('bufferedamountlow', handler);
           resolve();
         };
+        timeoutId = setTimeout(() => {
+          if (this.dataChannel) {
+            this.dataChannel.removeEventListener('bufferedamountlow', handler);
+          }
+          resolve();
+        }, 1000);
         this.dataChannel.addEventListener('bufferedamountlow', handler);
       });
     }
@@ -155,6 +195,7 @@ export class WebRtcPeer {
     this.isOpen = false;
     if (this.dataChannel) {
       try { this.dataChannel.close(); } catch {}
+      this.dataChannel = null;
     }
     if (this.pc) {
       try { this.pc.close(); } catch {}

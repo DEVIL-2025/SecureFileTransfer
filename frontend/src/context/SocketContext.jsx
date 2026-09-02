@@ -9,15 +9,16 @@ import {
   encryptChunkBinary,
   decryptChunkBinary,
   encryptChunk,
-  decryptChunk
+  decryptChunk,
+  base64ToArrayBuffer
 } from '../crypto/e2ee';
 import { WebRtcPeer } from '../crypto/webrtc';
 
 const SocketContext = createContext(null);
 
 const STORAGE_KEY = 'secure_transfer_connected_peers';
-const WEBRTC_RAW_CHUNK_SIZE = 60 * 1024;    // 60 KB
-const WEBSOCKET_RAW_CHUNK_SIZE = 128 * 1024; // 128 KB
+const WEBRTC_RAW_CHUNK_SIZE = 60 * 1024;     // 60 KB for WebRTC SCTP frames
+const WEBSOCKET_RAW_CHUNK_SIZE = 128 * 1024; // 128 KB for WebSocket Relay
 
 function getStoredPeers() {
   try {
@@ -34,6 +35,49 @@ function saveStoredPeers(peersSet) {
   } catch {}
 }
 
+function resolveMimeType(fileName, fallbackMime) {
+  if (fallbackMime && fallbackMime !== 'application/octet-stream') {
+    return fallbackMime;
+  }
+  const ext = (fileName || '').split('.').pop().toLowerCase();
+  const mimeMap = {
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mkv: 'video/x-matroska',
+    mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    flv: 'video/x-flv',
+    wmv: 'video/x-ms-wmv',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
+    m4a: 'audio/mp4',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    pdf: 'application/pdf',
+    zip: 'application/zip',
+    rar: 'application/x-rar-compressed',
+    '7z': 'application/x-7z-compressed',
+    tar: 'application/x-tar',
+    json: 'application/json',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  };
+  return mimeMap[ext] || fallbackMime || 'application/octet-stream';
+}
+
+function isInitiatorFor(myUsername, peerUsername) {
+  if (!myUsername || !peerUsername) return false;
+  return myUsername.localeCompare(peerUsername) > 0;
+}
+
 export function SocketProvider({ children }) {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
@@ -45,7 +89,6 @@ export function SocketProvider({ children }) {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [incomingFileRequest, setIncomingFileRequest] = useState(null);
 
-  // Dynamic Real-Time Transfer State (100% in lockstep on both Sender & Receiver)
   const [transferState, setTransferState] = useState({
     active: false,
     mode: 'idle', // 'sending' | 'receiving' | 'idle'
@@ -59,6 +102,8 @@ export function SocketProvider({ children }) {
     transport: 'Direct',
     isCancelled: false,
     peer: null,
+    downloadUrl: null,
+    downloadName: ''
   });
 
   const ecdhKeyPairsRef = useRef({});
@@ -81,7 +126,7 @@ export function SocketProvider({ children }) {
     lastSampleBytes: 0,
     lastSyncTime: 0,
     slidingWindowInFlight: 0,
-    maxWindowSize: 8
+    maxWindowSize: 16
   });
 
   const initiateEcdh = async (peer, sockInstance) => {
@@ -94,10 +139,11 @@ export function SocketProvider({ children }) {
 
       currentSock.emit('ecdh_key_exchange', {
         to: peer,
-        publicKey: publicJwk
+        publicKey: publicJwk,
+        isInitiator: true
       });
     } catch (err) {
-      console.error('ECDH error:', err);
+      console.error('[E2EE] initiateEcdh error:', err);
     }
   };
 
@@ -108,8 +154,12 @@ export function SocketProvider({ children }) {
     const rtc = new WebRtcPeer(
       peer,
       currentSock,
-      () => {},
-      () => {},
+      () => {
+        console.log(`[WebRTC] DataChannel ready with @${peer}`);
+      },
+      () => {
+        console.log(`[WebRTC] DataChannel closed with @${peer}`);
+      },
       (binaryData) => {
         handleReceiveWebRtcChunk(binaryData, currentSock);
       }
@@ -117,6 +167,19 @@ export function SocketProvider({ children }) {
 
     webrtcPeersRef.current[peer] = rtc;
     return rtc;
+  };
+
+  const setupPeerSession = (peer, sockInstance) => {
+    const currentSock = sockInstance || socket;
+    if (!currentSock || !user) return;
+
+    const amInitiator = isInitiatorFor(user.username, peer);
+    const rtc = getOrCreateWebRtcPeer(peer, currentSock);
+
+    if (amInitiator) {
+      initiateEcdh(peer, currentSock);
+      rtc.createOffer().catch((err) => console.warn('[WebRTC] offer error:', err));
+    }
   };
 
   useEffect(() => {
@@ -157,9 +220,7 @@ export function SocketProvider({ children }) {
         saveStoredPeers(currentStored);
 
         for (const peer of peers) {
-          initiateEcdh(peer, newSocket);
-          const rtc = getOrCreateWebRtcPeer(peer, newSocket);
-          rtc.createOffer().catch(() => {});
+          setupPeerSession(peer, newSocket);
         }
       }
     });
@@ -184,14 +245,13 @@ export function SocketProvider({ children }) {
       setConnectedPeers(new Set(connectedPeersRef.current));
       saveStoredPeers(connectedPeersRef.current);
       
-      initiateEcdh(peer, newSocket);
-      const rtc = getOrCreateWebRtcPeer(peer, newSocket);
-      rtc.createOffer().catch(() => {});
+      setupPeerSession(peer, newSocket);
     });
 
     newSocket.on('ecdh_key_exchange', async (data) => {
       const peer = data.from;
       const peerPublicJwk = data.publicKey;
+      const isPeerInitiator = data.isInitiator;
       if (!peer || !peerPublicJwk) return;
 
       connectedPeersRef.current.add(peer);
@@ -199,24 +259,35 @@ export function SocketProvider({ children }) {
       saveStoredPeers(connectedPeersRef.current);
       
       try {
-        let myData = ecdhKeyPairsRef.current[peer];
-        if (!myData || !myData.keyPair) {
+        if (isPeerInitiator) {
+          // Responder role: generate own keypair, derive shared key, and reply
           const keyPair = await generateEcdhKeyPair();
           const publicJwk = await exportPublicKey(keyPair.publicKey);
-          myData = { keyPair, sharedAesKey: null };
-          ecdhKeyPairsRef.current[peer] = myData;
+          const peerPublicKey = await importPublicKey(peerPublicJwk);
+          const sharedAesKey = await deriveSharedAesGcmKey(keyPair.privateKey, peerPublicKey);
+          
+          ecdhKeyPairsRef.current[peer] = { keyPair, sharedAesKey };
 
           newSocket.emit('ecdh_key_exchange', {
             to: peer,
-            publicKey: publicJwk
+            publicKey: publicJwk,
+            isInitiator: false
           });
-        }
+        } else {
+          // Initiator role: use existing keypair to derive shared key with responder
+          let myData = ecdhKeyPairsRef.current[peer];
+          if (!myData || !myData.keyPair) {
+            const keyPair = await generateEcdhKeyPair();
+            myData = { keyPair, sharedAesKey: null };
+            ecdhKeyPairsRef.current[peer] = myData;
+          }
 
-        const peerPublicKey = await importPublicKey(peerPublicJwk);
-        const sharedAesKey = await deriveSharedAesGcmKey(myData.keyPair.privateKey, peerPublicKey);
-        myData.sharedAesKey = sharedAesKey;
+          const peerPublicKey = await importPublicKey(peerPublicJwk);
+          const sharedAesKey = await deriveSharedAesGcmKey(myData.keyPair.privateKey, peerPublicKey);
+          myData.sharedAesKey = sharedAesKey;
+        }
       } catch (err) {
-        console.error('ECDH error:', err);
+        console.error('[E2EE] Key derivation error:', err);
       }
     });
 
@@ -285,7 +356,6 @@ export function SocketProvider({ children }) {
       await handleReceiveWebSocketChunk(data, newSocket);
     });
 
-    // Receiver progress feed syncing the Sender in real time
     newSocket.on('transfer_progress_sync', (data) => {
       if (data && data.receivedBytes !== undefined && data.totalBytes) {
         updateSpeedMetrics(data.receivedBytes, data.totalBytes, 'sending');
@@ -443,18 +513,18 @@ export function SocketProvider({ children }) {
     const rtc = webrtcPeersRef.current[t.peer];
     if (rtc && rtc.isOpen) {
       t.transport = 'Direct';
-      setTransferState((prev) => ({ ...prev, transport: 'Direct', statusText: 'Sending file...' }));
+      setTransferState((prev) => ({ ...prev, transport: 'Direct', statusText: 'Sending file via Direct P2P ⚡' }));
       try {
         await streamOverWebRtc(rtc, sock);
         return;
       } catch (err) {
-        console.warn('Direct stream exception, falling back to relay:', err);
+        console.warn('[WebRTC] Direct stream error, switching to relay:', err);
       }
     }
 
     t.transport = 'Relay';
     t.chunkSize = WEBSOCKET_RAW_CHUNK_SIZE;
-    setTransferState((prev) => ({ ...prev, transport: 'Relay', statusText: 'Sending file...' }));
+    setTransferState((prev) => ({ ...prev, transport: 'Relay', statusText: 'Sending file via Relay...' }));
     fillWebSocketPipeline(sock);
   };
 
@@ -475,6 +545,7 @@ export function SocketProvider({ children }) {
         decryptedBuffer = payloadBuffer;
       }
     } catch (err) {
+      console.error('[E2EE] WebRTC Decryption failed:', err);
       decryptedBuffer = payloadBuffer;
     }
 
@@ -482,7 +553,6 @@ export function SocketProvider({ children }) {
     t.receivedSize += decryptedBuffer.byteLength;
     updateSpeedMetrics(t.receivedSize, t.totalSize, 'receiving');
 
-    // Send synchronous progress back to sender so sender progress is 100% in lockstep
     const now = performance.now();
     if (now - t.lastSyncTime > 150 || isLast) {
       t.lastSyncTime = now;
@@ -511,15 +581,18 @@ export function SocketProvider({ children }) {
     try {
       if (sessionData && sessionData.sharedAesKey && data.iv) {
         decryptedBuffer = await decryptChunk(sessionData.sharedAesKey, data.chunk, data.iv);
+      } else if (typeof data.chunk === 'string') {
+        decryptedBuffer = base64ToArrayBuffer(data.chunk);
       } else {
         decryptedBuffer = data.chunk;
       }
-    } catch {
-      decryptedBuffer = data.chunk;
+    } catch (err) {
+      console.error('[E2EE] WebSocket Decryption failed:', err);
+      decryptedBuffer = typeof data.chunk === 'string' ? base64ToArrayBuffer(data.chunk) : data.chunk;
     }
 
     t.receivedChunks.push(decryptedBuffer);
-    t.receivedSize += decryptedBuffer.byteLength;
+    t.receivedSize += (decryptedBuffer.byteLength || 0);
 
     sock.emit('ack_chunk', { to: data.from || t.peer });
     updateSpeedMetrics(t.receivedSize, t.totalSize, 'receiving');
@@ -543,13 +616,18 @@ export function SocketProvider({ children }) {
 
   const finalizeReceivedFile = (sock) => {
     const t = transferRef.current;
-    const blob = new Blob(t.receivedChunks, { type: t.mimeType || 'application/octet-stream' });
+    const finalMime = resolveMimeType(t.fileName, t.mimeType);
+
+    const blob = new Blob(t.receivedChunks, { type: finalMime });
     const url = URL.createObjectURL(blob);
+    
+    // Automatic browser download
     const a = document.createElement('a');
     a.href = url;
     a.download = t.fileName;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 
     setTransferState((prev) => ({
       ...prev,
@@ -557,6 +635,8 @@ export function SocketProvider({ children }) {
       progress: 100,
       transferredBytes: t.totalSize,
       statusText: 'File received and saved ✅',
+      downloadUrl: url,
+      downloadName: t.fileName,
       speedText: '',
       etaText: 'Completed'
     }));
@@ -585,6 +665,7 @@ export function SocketProvider({ children }) {
       saveStoredPeers(connectedPeersRef.current);
       socket.emit('accept_request', { to: peer });
       setIncomingRequest(null);
+      setupPeerSession(peer, socket);
     }
   };
 
@@ -609,7 +690,7 @@ export function SocketProvider({ children }) {
       receivedSize: 0,
       totalSize: file.size,
       fileName: file.name,
-      mimeType: file.type,
+      mimeType: resolveMimeType(file.name, file.type),
       peer: targetUser,
       isCancelled: false,
       transport: initialTransport,
@@ -618,7 +699,7 @@ export function SocketProvider({ children }) {
       lastSampleBytes: 0,
       lastSyncTime: 0,
       slidingWindowInFlight: 0,
-      maxWindowSize: 8
+      maxWindowSize: 16
     };
 
     setTransferState({
@@ -633,14 +714,16 @@ export function SocketProvider({ children }) {
       etaText: '',
       transport: initialTransport,
       isCancelled: false,
-      peer: targetUser
+      peer: targetUser,
+      downloadUrl: null,
+      downloadName: ''
     });
 
     socket.emit('file_send_request', {
       to: targetUser,
       fileName: file.name,
       totalSize: file.size,
-      mimeType: file.type,
+      mimeType: resolveMimeType(file.name, file.type),
       transport: initialTransport
     });
   };
@@ -651,6 +734,7 @@ export function SocketProvider({ children }) {
 
     const rtc = webrtcPeersRef.current[req.from];
     const initialTransport = (rtc && rtc.isOpen) ? 'Direct' : 'Relay';
+    const finalMime = resolveMimeType(req.fileName, req.mimeType);
 
     transferRef.current = {
       file: null,
@@ -660,7 +744,7 @@ export function SocketProvider({ children }) {
       receivedSize: 0,
       totalSize: req.totalSize,
       fileName: req.fileName,
-      mimeType: req.mimeType,
+      mimeType: finalMime,
       peer: req.from,
       isCancelled: false,
       transport: initialTransport,
@@ -669,7 +753,7 @@ export function SocketProvider({ children }) {
       lastSampleBytes: 0,
       lastSyncTime: 0,
       slidingWindowInFlight: 0,
-      maxWindowSize: 8
+      maxWindowSize: 16
     };
 
     setTransferState({
@@ -684,7 +768,9 @@ export function SocketProvider({ children }) {
       etaText: 'Calculating...',
       transport: initialTransport,
       isCancelled: false,
-      peer: req.from
+      peer: req.from,
+      downloadUrl: null,
+      downloadName: ''
     });
 
     socket.emit('file_accept', {
