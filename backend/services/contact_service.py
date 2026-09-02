@@ -53,14 +53,13 @@ def generate_connection_key(owner_username: str, expiry_minutes: int = 15):
     
     now = _get_utc_now()
     expires_at = now + timedelta(minutes=expiry_minutes)
-    exp_val = expires_at.strftime("%Y-%m-%d %H:%M:%S")
     
     execute_query(
         """
         INSERT INTO connection_keys (owner_username, key_hash, expires_at)
         VALUES (%s, %s, %s)
         """,
-        (owner_username, key_hash, exp_val)
+        (owner_username, key_hash, expires_at)
     )
     
     return {
@@ -107,6 +106,7 @@ def get_active_connection_key(owner_username: str):
         
     remaining_seconds = max(0, int((exp_dt - now).total_seconds()))
     return {
+        'has_active_key': True,
         'expires_at': exp_dt.isoformat(),
         'expires_in_seconds': remaining_seconds
     }
