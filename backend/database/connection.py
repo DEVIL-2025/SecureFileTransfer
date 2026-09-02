@@ -2,101 +2,71 @@ import os
 import sqlite3
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
 from backend.config import Config
 
-def is_postgres():
-    url = Config.DATABASE_URL
-    return url.startswith("postgresql://") or url.startswith("postgres://")
+DEFAULT_SQLITE_PATH = "database.db"
 
-def get_raw_connection():
+def is_postgres():
+    return Config.DATABASE_URL.startswith("postgresql://") or Config.DATABASE_URL.startswith("postgres://")
+
+def get_db_path():
+    if Config.DATABASE_URL.startswith("sqlite:///"):
+        return Config.DATABASE_URL.replace("sqlite:///", "")
+    return DEFAULT_SQLITE_PATH
+
+def get_db_connection():
     if is_postgres():
-        conn = psycopg2.connect(Config.DATABASE_URL)
+        db_url = Config.DATABASE_URL
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(db_url)
         return conn
     else:
-        # Extract path from sqlite:///path or default
-        db_path = Config.DATABASE_URL.replace("sqlite:///", "")
-        if not db_path:
-            db_path = "database.db"
-        # In SQLite, enable foreign keys explicitly
-        conn = sqlite3.connect(db_path, check_same_thread=False)
+        conn = sqlite3.connect(get_db_path())
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
         return conn
 
-@contextmanager
-def get_db():
-    """
-    Context manager for database connections.
-    Guarantees automatic commit on success, rollback on exception, and connection closure.
-    """
-    conn = get_raw_connection()
+get_db = get_db_connection
+
+def execute_query(query, params=(), fetchone=False, fetchall=False, commit=True):
+    conn = get_db_connection()
     try:
-        yield conn
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise e
+        if is_postgres():
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute(query, params)
+            if commit:
+                conn.commit()
+            if fetchone:
+                res = cursor.fetchone()
+                return dict(res) if res else None
+            if fetchall:
+                res = cursor.fetchall()
+                return [dict(r) for r in res] if res else []
+            return None
+        else:
+            cursor = conn.cursor()
+            formatted_query = query.replace("%s", "?")
+            cursor.execute(formatted_query, params)
+            if commit:
+                conn.commit()
+            if fetchone:
+                res = cursor.fetchone()
+                return dict(res) if res else None
+            if fetchall:
+                res = cursor.fetchall()
+                return [dict(r) for r in res] if res else []
+            return None
     finally:
         conn.close()
 
-def execute_query(query, params=(), fetchone=False, fetchall=False, commit=True):
-    """
-    Unified query execution helper that handles parameter placeholders (%s for PG, ? for SQLite)
-    and returns dictionary-like results.
-    """
-    with get_db() as conn:
-        postgres = is_postgres()
-        
-        # Adapt parameter syntax if necessary
-        formatted_query = query
-        if not postgres:
-            # Replace %s with ? for sqlite if needed
-            formatted_query = query.replace("%s", "?")
-        else:
-            # Replace ? with %s for postgres if needed
-            formatted_query = query.replace("?", "%s")
-            
-        if postgres:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-        else:
-            cursor = conn.cursor()
-            
-        cursor.execute(formatted_query, params)
-        
-        if fetchone:
-            row = cursor.fetchone()
-            if row is not None and not postgres:
-                return dict(row)
-            return row
-            
-        if fetchall:
-            rows = cursor.fetchall()
-            if not postgres:
-                return [dict(r) for r in rows]
-            return rows
-            
-        last_id = getattr(cursor, 'lastrowid', None)
-        return last_id
-
 def init_db():
-    """
-    Initializes database tables, foreign keys, and indexes.
-    Works seamlessly on both PostgreSQL and SQLite, and migrates legacy schemas.
-    """
-    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
-    if os.path.exists(schema_path):
-        with open(schema_path, "r") as f:
-            schema_sql = f.read()
-    else:
-        return
+    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+    with open(schema_path, 'r') as f:
+        schema_sql = f.read()
 
-    with get_db() as conn:
-        postgres = is_postgres()
+    with get_db_connection() as conn:
         cursor = conn.cursor()
-        
-        if not postgres:
-            # Translate PostgreSQL-specific types to SQLite syntax
+        if not is_postgres():
             sqlite_schema = schema_sql
             sqlite_schema = sqlite_schema.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
             sqlite_schema = sqlite_schema.replace("BIGINT", "INTEGER")
@@ -147,6 +117,31 @@ def init_db():
             if "status" not in transfer_cols:
                 cursor.execute("ALTER TABLE transfers ADD COLUMN status TEXT DEFAULT 'completed'")
         else:
+            # Execute PostgreSQL schema
             cursor.execute(schema_sql)
+            
+            # Safe column migrations for PostgreSQL if tables existed previously
+            postgres_migrations = [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(80) UNIQUE",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS sent INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS received INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255) DEFAULT ''",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) DEFAULT 'application/octet-stream'",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_key TEXT DEFAULT ''",
+                "ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'completed'",
+                "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ]
+            for stmt in postgres_migrations:
+                try:
+                    cursor.execute(stmt)
+                except Exception:
+                    pass
+            conn.commit()
             
     print(f"Database initialized successfully ({'PostgreSQL' if is_postgres() else 'SQLite'}).")

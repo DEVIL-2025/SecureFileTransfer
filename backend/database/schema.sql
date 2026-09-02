@@ -1,5 +1,5 @@
 -- Relational Database Schema for Secure File Transfer
--- Compatible with PostgreSQL and SQLite
+-- Fully compatible with PostgreSQL (Neon / Supabase / AWS) and SQLite
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS shared_files (
     CONSTRAINT unique_file_share UNIQUE (file_id, shared_with)
 );
 
--- 4. Transfers Table (Real-time P2P/WebSocket Transfer History)
+-- 4. Transfers Table (Real-time Transfer History)
 CREATE TABLE IF NOT EXISTS transfers (
     id SERIAL PRIMARY KEY,
     sender VARCHAR(80) NOT NULL,
@@ -58,19 +58,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- 6. Connection Keys Table (One-Time Pairing Keys)
 CREATE TABLE IF NOT EXISTS connection_keys (
     id SERIAL PRIMARY KEY,
-    owner_username VARCHAR(80) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+    owner_username VARCHAR(80) NOT NULL,
     key_hash VARCHAR(64) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     used_at TIMESTAMP,
-    used_by VARCHAR(80) REFERENCES users(username) ON DELETE SET NULL,
+    used_by VARCHAR(80),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 7. User Contacts Table (Persistent Trusted Contacts Relationship)
 CREATE TABLE IF NOT EXISTS user_contacts (
     id SERIAL PRIMARY KEY,
-    user_a VARCHAR(80) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-    user_b VARCHAR(80) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+    user_a VARCHAR(80) NOT NULL,
+    user_b VARCHAR(80) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_contact_pair UNIQUE (user_a, user_b),
     CONSTRAINT canonical_contact_order CHECK (user_a < user_b)
