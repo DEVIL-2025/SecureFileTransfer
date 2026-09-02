@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Outer Dark Navy Shield -->
+  <path d="M64 4L12 24v42c0 33.6 22.8 65.2 52 74 29.2-8.8 52-40.4 52-74V24L64 4z" fill="#0A366F"/>
+  <path d="M64 4v136c29.2-8.8 52-40.4 52-74V24L64 4z" fill="#062551"/>
+  
+  <!-- Outer Light Border Rim -->
+  <path d="M64 16L24 32v34c0 26.8 17.6 51.6 40 59 22.4-7.4 40-32.2 40-59V32L64 16z" fill="#E2F1FD"/>
+  <path d="M64 16v109c22.4-7.4 40-32.2 40-59V32L64 16z" fill="#C5E4FA"/>
+
+  <!-- Inner Shield Left (Bright Cyan-Blue) -->
+  <path d="M64 24L32 37v29c0 21.6 13.8 41.8 32 48V24z" fill="#00A6FB"/>
+  
+  <!-- Inner Shield Right (Vivid Cobalt Blue) -->
+  <path d="M64 24v90c18.2-6.2 32-26.4 32-48V37L64 24z" fill="#0064C8"/>
+
+  <!-- White Checkmark -->
+  <path d="M53 74.5L39.5 61l-8 8L53 90.5 96.5 47l-8-8L53 74.5z" fill="#FFFFFF"/>
+  <path d="M64 63.5L53 74.5l-1.5-1.5 12.5-12.5v3z" fill="#FFFFFF"/>
+</svg>
