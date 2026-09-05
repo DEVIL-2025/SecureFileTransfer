@@ -476,6 +476,9 @@ export function SocketProvider({ children }) {
       const chunkEnd = Math.min(t.file.size, t.offset + t.chunkSize);
       const isLast = chunkEnd >= t.file.size;
       const slice = t.file.slice(t.offset, chunkEnd);
+      t.offset = chunkEnd;
+      t.slidingWindowInFlight++;
+
       const arrayBuffer = await slice.arrayBuffer();
 
       const sessionData = ecdhKeyPairsRef.current[t.peer];
@@ -488,7 +491,6 @@ export function SocketProvider({ children }) {
         ivString = encrypted.iv;
       }
 
-      t.slidingWindowInFlight++;
       sock.emit('file_chunk', {
         to: t.peer,
         fileName: t.file.name,
@@ -498,8 +500,6 @@ export function SocketProvider({ children }) {
         totalSize: t.file.size,
         mimeType: t.file.type
       });
-
-      t.offset = chunkEnd;
     }
   };
 
@@ -574,8 +574,11 @@ export function SocketProvider({ children }) {
   const handleReceiveWebSocketChunk = async (data, sock) => {
     const t = transferRef.current;
     t.totalSize = data.totalSize || t.totalSize;
+    if (data.fileName && !t.fileName) t.fileName = data.fileName;
+    if (data.mimeType && !t.mimeType) t.mimeType = data.mimeType;
 
-    const sessionData = ecdhKeyPairsRef.current[data.to] || ecdhKeyPairsRef.current[t.peer];
+    const senderPeer = data.from || t.peer;
+    const sessionData = ecdhKeyPairsRef.current[senderPeer];
     let decryptedBuffer;
 
     try {

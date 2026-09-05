@@ -118,7 +118,8 @@ def register_socket_handlers(socketio):
             
         emit('ecdh_key_exchange', {
             'from': sender,
-            'publicKey': public_key_jwk
+            'publicKey': public_key_jwk,
+            'isInitiator': data.get('isInitiator', False)
         }, room=receiver)
 
     # --- WebRTC P2P Signaling (Offer, Answer, ICE Candidates) ---
@@ -198,6 +199,7 @@ def register_socket_handlers(socketio):
         if not sender or not receiver or receiver not in active_users:
             return
             
+        data['from'] = sender
         is_last = data.get('isLast', False)
         if is_last:
             filename = data.get('fileName')

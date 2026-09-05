@@ -73,9 +73,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownload = (fileId, originalName) => {
-    showToast(`Downloading ${originalName}...`, 'info');
-    window.location.href = `/api/files/download/${fileId}`;
+  const handleDownload = async (fileId, originalName) => {
+    try {
+      showToast(`Downloading ${originalName}...`, 'info');
+      const res = await api.get(`/files/download/${fileId}`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = originalName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showToast(`Downloaded ${originalName} successfully!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Download failed', 'error');
+    }
   };
 
   const handleShareSubmit = async (e) => {
