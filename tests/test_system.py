@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from backend.config import Config
 from backend.app import create_app
 from backend.database.connection import execute_query, init_db, get_db_connection
-from backend.services.crypto_service import encrypt_file_data, decrypt_file_data, ensure_rsa_keys
 from backend.services.contact_service import (
     generate_connection_key,
     consume_connection_key,
@@ -14,18 +13,12 @@ from backend.services.contact_service import (
     remove_contact
 )
 
-class CryptoUnitTestCase(unittest.TestCase):
-    def setUp(self):
-        ensure_rsa_keys()
-
-    def test_file_encryption_decryption(self):
-        raw_data = b"Hello, this is confidential data for end-to-end encryption testing!"
-        encrypted, wrapped_key, file_hash = encrypt_file_data(raw_data)
-        self.assertNotEqual(encrypted, raw_data)
-        self.assertTrue(len(wrapped_key) > 10)
-
-        decrypted = decrypt_file_data(encrypted, wrapped_key)
-        self.assertEqual(decrypted, raw_data)
+class ServerStorageDecommissionedTestCase(unittest.TestCase):
+    def test_no_server_storage_artifacts(self):
+        """Verify that server-side upload directory and RSA key files do not exist."""
+        self.assertFalse(os.path.exists("uploads"), "uploads directory should not exist")
+        self.assertFalse(os.path.exists("private_key.pem"), "private_key.pem should not exist")
+        self.assertFalse(os.path.exists("public_key.pem"), "public_key.pem should not exist")
 
 class SecureFileTransferTestCase(unittest.TestCase):
     @classmethod
@@ -102,9 +95,9 @@ class SecureFileTransferTestCase(unittest.TestCase):
         self.assertEqual(res_me_after.status_code, 200)
         self.assertFalse(res_me_after.get_json()['authenticated'])
 
-    def test_04_vault_file_upload_and_download(self):
-        user = f"vaultuser_{self.uid}"
-        email = f"vault_{self.uid}@example.com"
+    def test_04_server_file_storage_removed_and_transfer_activity(self):
+        user = f"transuser_{self.uid}"
+        email = f"trans_{self.uid}@example.com"
         
         # Register & Login
         self.client.post('/api/auth/register', json={
@@ -117,29 +110,25 @@ class SecureFileTransferTestCase(unittest.TestCase):
             'password': 'password123'
         })
 
-        # Upload file
-        test_content = b"Secret vault content to test cloud upload."
-        data = {
-            'file': (io.BytesIO(test_content), 'vault_test.txt')
-        }
-        res_upload = self.client.post('/api/files/upload', data=data, content_type='multipart/form-data')
-        self.assertEqual(res_upload.status_code, 201)
+        # Verify obsolete server file storage routes return 404
+        res_upload = self.client.post('/api/files/upload', data={'file': (io.BytesIO(b'data'), 'test.txt')})
+        self.assertEqual(res_upload.status_code, 404, "Server file upload route must return 404")
 
-        # List files
-        res_list = self.client.get('/api/files/list')
-        self.assertEqual(res_list.status_code, 200)
-        my_files = res_list.get_json()['my_files']
-        self.assertTrue(len(my_files) >= 1)
-        file_id = my_files[0]['id']
+        res_list = self.client.get('/api/files')
+        self.assertEqual(res_list.status_code, 404, "Server file list route must return 404")
 
-        # Download file
-        res_download = self.client.get(f'/api/files/download/{file_id}')
-        self.assertEqual(res_download.status_code, 200)
-        self.assertEqual(res_download.data, test_content)
+        res_download = self.client.get('/api/files/download/1')
+        self.assertEqual(res_download.status_code, 404, "Server file download route must return 404")
 
-        # Delete file
-        res_delete = self.client.delete(f'/api/files/{file_id}')
-        self.assertEqual(res_delete.status_code, 200)
+        # Verify transfer history endpoint functions correctly
+        res_transfers = self.client.get('/api/users/transfers')
+        self.assertEqual(res_transfers.status_code, 200)
+        self.assertIsInstance(res_transfers.get_json(), list)
+
+        # Verify clear transfers endpoint
+        res_clear = self.client.post('/api/users/transfers/clear')
+        self.assertEqual(res_clear.status_code, 200)
+        self.assertTrue(res_clear.get_json()['success'])
 
     def test_05_connection_key_generation_and_consumption(self):
         u1 = f"alice_key_{self.uid}"

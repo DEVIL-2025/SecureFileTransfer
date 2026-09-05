@@ -185,10 +185,14 @@ export default function Contacts() {
   };
 
   // Contacts with live presence
-  const enrichedContacts = contacts.map((c) => ({
-    ...c,
-    online: onlineUsers.includes(c.username)
-  }));
+  const enrichedContacts = contacts.map((c) => {
+    const cName = (c.username || '').toLowerCase();
+    const isOnline = onlineUsers ? onlineUsers.some((u) => (u || '').toLowerCase() === cName) : false;
+    return {
+      ...c,
+      online: isOnline
+    };
+  });
 
   const filteredContacts = enrichedContacts.filter((c) => {
     const q = searchQuery.toLowerCase();
@@ -199,13 +203,13 @@ export default function Contacts() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-cyan-200/80 pb-6 gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-cyan-200/80 pb-6 gap-4">
         <div>
           <span className="text-xs font-extrabold uppercase tracking-wider text-[#0077B6]">
             TRUSTED NETWORK
           </span>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 font-serif">
-            <Users className="w-8 h-8 text-[#0077B6]" />
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-3 font-serif">
+            <Users className="w-7 h-7 sm:w-8 h-8 text-[#0077B6]" />
             My Trusted Contacts
           </h1>
         </div>
@@ -217,7 +221,7 @@ export default function Contacts() {
             setConnectError('');
             setConnectSuccess(null);
           }}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl btn-gradient-primary font-bold text-white shadow-md transition-all cursor-pointer"
+          className="flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl btn-gradient-primary font-bold text-white shadow-md transition-all cursor-pointer w-full sm:w-auto text-sm sm:text-base"
         >
           <UserPlus className="w-5 h-5" />
           <span>+ Add Contact</span>
@@ -226,7 +230,7 @@ export default function Contacts() {
 
       {/* Search Bar & Stats */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative max-w-sm w-full">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -237,20 +241,20 @@ export default function Contacts() {
           />
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-bold text-slate-700">
-          <span className="px-3.5 py-1.5 rounded-xl bg-white border border-cyan-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-bold text-slate-700">
+          <span className="px-3 sm:px-3.5 py-1.5 rounded-xl bg-white border border-cyan-200 shadow-xs">
             Total: <strong className="text-slate-900">{contacts.length}</strong>
           </span>
-          <span className="px-3.5 py-1.5 rounded-xl bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] shadow-xs">
+          <span className="px-3 sm:px-3.5 py-1.5 rounded-xl bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] shadow-xs">
             Online: <strong>{enrichedContacts.filter((c) => c.online).length}</strong>
           </span>
         </div>
       </div>
 
       {/* Contacts Grid */}
-      <div className="soft-card p-6 sm:p-8 rounded-3xl space-y-6">
-        <div className="flex items-center justify-between border-b border-cyan-100 pb-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
+      <div className="soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-6">
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between border-b border-cyan-100 pb-4 gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
             <ShieldCheck className="w-5 h-5 text-[#0077B6]" />
             <span>Trusted Contacts List</span>
             <span className="text-xs text-slate-600 font-bold">({filteredContacts.length})</span>
@@ -265,7 +269,7 @@ export default function Contacts() {
             Loading contacts...
           </div>
         ) : contacts.length === 0 ? (
-          <div className="text-center py-16 text-slate-600 border border-dashed border-cyan-200 rounded-2xl space-y-3 font-medium">
+          <div className="text-center py-12 sm:py-16 px-4 text-slate-600 border border-dashed border-cyan-200 rounded-2xl space-y-3 font-medium">
             <Users className="w-10 h-10 text-cyan-400 mx-auto" />
             <p className="font-bold text-lg text-slate-900 font-serif">No contacts added yet</p>
             <p className="text-sm text-slate-600 max-w-md mx-auto">
@@ -288,22 +292,22 @@ export default function Contacts() {
             No contacts match "{searchQuery}".
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredContacts.map((contact) => (
               <div
                 key={contact.username}
-                className="p-5 rounded-2xl border border-cyan-100 bg-white hover:border-cyan-300 transition-all shadow-xs flex flex-col justify-between space-y-4"
+                className="p-4 sm:p-5 rounded-2xl border border-cyan-100 bg-white hover:border-cyan-300 transition-all shadow-xs flex flex-col justify-between space-y-4"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] border border-[#7DD3FC] text-[#0077B6] flex items-center justify-center font-black text-lg shadow-xs font-serif">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] border border-[#7DD3FC] text-[#0077B6] flex items-center justify-center font-black text-base sm:text-lg shadow-xs font-serif shrink-0">
                       {contact.username.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-base text-slate-900 font-serif">
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-sm sm:text-base text-slate-900 font-serif truncate">
                         @{contact.username}
                       </h3>
-                      <p className="text-xs text-slate-600 truncate max-w-[150px]">
+                      <p className="text-xs text-slate-600 truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[140px] md:max-w-[190px]">
                         {contact.email || 'No email'}
                       </p>
                     </div>
@@ -311,7 +315,7 @@ export default function Contacts() {
 
                   {/* Presence Status */}
                   <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
                       contact.online
                         ? 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]'
                         : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -334,7 +338,7 @@ export default function Contacts() {
                 <div className="border-t border-slate-100 pt-3 flex items-center justify-between gap-2">
                   <button
                     onClick={() => handleSendFileToContact(contact)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs min-h-[36px]"
                     title={contact.online ? "Send File Live" : "Open Transfer Room"}
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -343,7 +347,7 @@ export default function Contacts() {
                   
                   <button
                     onClick={() => setDeleteModal({ open: true, contact, loading: false })}
-                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-100"
+                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer border border-rose-100 min-h-[36px] min-w-[36px] flex items-center justify-center"
                     title="Remove Contact"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -405,24 +409,24 @@ export default function Contacts() {
               </p>
 
               {generatedKey ? (
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] border border-[#7DD3FC] space-y-3">
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] border border-[#7DD3FC] space-y-3">
                   <div className="text-xs font-bold text-[#0077B6] uppercase tracking-wider">
                     Your One-Time Connection Key
                   </div>
                   
-                  <div className="font-mono text-2xl sm:text-3xl font-black text-slate-900 tracking-wider bg-white py-3 px-4 rounded-xl shadow-xs border border-cyan-200">
+                  <div className="font-mono text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-wider bg-white py-3 px-3 sm:px-4 rounded-xl shadow-xs border border-cyan-200 break-all select-all">
                     {generatedKey}
                   </div>
 
                   <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#0077B6]">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-4 h-4 shrink-0" />
                     <span>Expires in: {timeLeft || '05:00'}</span>
                   </div>
 
-                  <div className="flex justify-center gap-3 pt-2">
+                  <div className="flex flex-wrap justify-center gap-2 sm:gap-3 pt-2">
                     <button
                       onClick={handleCopyKey}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-[#0077B6] text-xs font-bold shadow-xs border border-cyan-200 transition-all cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#0077B6] text-xs font-bold shadow-xs border border-cyan-200 transition-all cursor-pointer min-h-[38px]"
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                       <span>{copied ? 'Copied!' : 'Copy Key'}</span>
@@ -431,7 +435,7 @@ export default function Contacts() {
                     <button
                       onClick={handleGenerateKey}
                       disabled={generating}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0077B6] hover:bg-[#023E8A] text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0077B6] hover:bg-[#023E8A] text-white text-xs font-bold shadow-xs transition-all cursor-pointer min-h-[38px]"
                     >
                       <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
                       <span>Regenerate</span>
@@ -439,11 +443,11 @@ export default function Contacts() {
                   </div>
                 </div>
               ) : (
-                <div className="py-6">
+                <div className="py-4 sm:py-6">
                   <button
                     onClick={handleGenerateKey}
                     disabled={generating}
-                    className="px-6 py-3.5 rounded-2xl btn-gradient-primary text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 mx-auto"
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-2xl btn-gradient-primary text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 mx-auto"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>{generating ? 'Generating...' : 'Generate Connection Key'}</span>
@@ -492,18 +496,18 @@ export default function Contacts() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer text-center"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
                   disabled={connecting || !inputKey.trim()}
-                  className="px-6 py-2.5 rounded-xl btn-gradient-primary text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl btn-gradient-primary text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {connecting ? 'Connecting...' : 'Connect'}
                 </button>
@@ -525,11 +529,11 @@ export default function Contacts() {
             Are you sure you want to remove <strong className="text-slate-900">@{deleteModal.contact?.username}</strong> from your trusted contacts?
           </p>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setDeleteModal({ open: false, contact: null, loading: false })}
-              className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer text-center"
             >
               Cancel
             </button>
@@ -537,7 +541,7 @@ export default function Contacts() {
               type="button"
               disabled={deleteModal.loading}
               onClick={handleDeleteContact}
-              className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
             >
               {deleteModal.loading ? 'Removing...' : 'Remove Contact'}
             </button>

@@ -12,6 +12,32 @@ active_connections = set()  # set of (u1, u2) tuples
 _disconnect_timers = {}
 GRACE_PERIOD_SECONDS = 15
 
+# Active transfers registry: transfer_id -> metadata
+active_transfers = {}
+
+def _record_transfer_completion(transfer_id):
+    transfer = active_transfers.get(transfer_id)
+    if not transfer or transfer.get('completed'):
+        return False
+    transfer['completed'] = True
+    transfer['status'] = 'completed'
+    
+    sender = transfer['sender']
+    receiver = transfer['receiver']
+    filename = transfer.get('filename') or 'unnamed_file'
+    total_size = transfer.get('total_size', 0)
+    
+    execute_query("UPDATE users SET sent = sent + 1 WHERE username = %s", (sender,))
+    execute_query("UPDATE users SET received = received + 1 WHERE username = %s", (receiver,))
+    execute_query(
+        """
+        INSERT INTO transfers (sender, receiver, filename, file_size, status)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (sender, receiver, filename, total_size, 'completed')
+    )
+    return True
+
 def register_socket_handlers(socketio):
 
     def _cleanup_user_connections(username):
@@ -166,7 +192,20 @@ def register_socket_handlers(socketio):
         if not sender or not receiver or receiver not in active_users:
             return
             
+        transfer_id = data.get('transferId')
+        if transfer_id:
+            active_transfers[transfer_id] = {
+                'transfer_id': transfer_id,
+                'sender': sender,
+                'receiver': receiver,
+                'filename': data.get('fileName'),
+                'total_size': data.get('totalSize', 0),
+                'status': 'requested',
+                'completed': False
+            }
+            
         emit('incoming_file', {
+            'transferId': transfer_id,
             'from': sender,
             'fileName': data.get('fileName'),
             'totalSize': data.get('totalSize'),
@@ -178,8 +217,13 @@ def register_socket_handlers(socketio):
     def handle_file_accept(data):
         receiver = session.get('username')
         sender = data.get('to')
+        transfer_id = data.get('transferId')
+        if transfer_id and transfer_id in active_transfers:
+            active_transfers[transfer_id]['status'] = 'in_progress'
+            
         if sender:
             emit('start_file_transfer', {
+                'transferId': transfer_id,
                 'from': receiver,
                 'fileName': data.get('fileName'),
                 'totalSize': data.get('totalSize')
@@ -189,9 +233,31 @@ def register_socket_handlers(socketio):
     def handle_file_reject(data):
         receiver = session.get('username')
         sender = data.get('to')
+        transfer_id = data.get('transferId')
+        if transfer_id and transfer_id in active_transfers:
+            active_transfers[transfer_id]['status'] = 'rejected'
+            
         if sender:
-            emit('file_rejected', {'from': receiver}, room=sender)
+            emit('file_rejected', {'transferId': transfer_id, 'from': receiver}, room=sender)
 
+    # Native Binary Safe WebSocket Chunk Relay (ArrayBuffer frames)
+    @socketio.on('file_chunk_binary')
+    def handle_file_chunk_binary(meta, chunk_bytes):
+        sender = session.get('username')
+        receiver = meta.get('to') if isinstance(meta, dict) else None
+        if not sender or not receiver or receiver not in active_users:
+            return
+            
+        meta['from'] = sender
+        transfer_id = meta.get('transferId')
+        is_last = meta.get('isLast', False)
+        
+        if is_last and transfer_id:
+            _record_transfer_completion(transfer_id)
+            
+        emit('receive_chunk_binary', (meta, chunk_bytes), room=receiver)
+
+    # Backward compatibility chunk handler
     @socketio.on('file_chunk')
     def handle_file_chunk(data):
         sender = session.get('username')
@@ -200,20 +266,23 @@ def register_socket_handlers(socketio):
             return
             
         data['from'] = sender
+        transfer_id = data.get('transferId')
         is_last = data.get('isLast', False)
         if is_last:
-            filename = data.get('fileName')
-            total_size = data.get('totalSize', 0)
-            
-            execute_query("UPDATE users SET sent = sent + 1 WHERE username = %s", (sender,))
-            execute_query("UPDATE users SET received = received + 1 WHERE username = %s", (receiver,))
-            execute_query(
-                """
-                INSERT INTO transfers (sender, receiver, filename, file_size, status)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (sender, receiver, filename, total_size, 'completed')
-            )
+            if transfer_id and transfer_id in active_transfers:
+                _record_transfer_completion(transfer_id)
+            else:
+                filename = data.get('fileName')
+                total_size = data.get('totalSize', 0)
+                execute_query("UPDATE users SET sent = sent + 1 WHERE username = %s", (sender,))
+                execute_query("UPDATE users SET received = received + 1 WHERE username = %s", (receiver,))
+                execute_query(
+                    """
+                    INSERT INTO transfers (sender, receiver, filename, file_size, status)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (sender, receiver, filename, total_size, 'completed')
+                )
             
         emit('receive_chunk', data, room=receiver)
 
@@ -229,6 +298,7 @@ def register_socket_handlers(socketio):
         receiver = data.get('to')
         if receiver:
             emit('transfer_progress_sync', {
+                'transferId': data.get('transferId'),
                 'receivedBytes': data.get('receivedBytes'),
                 'totalBytes': data.get('totalBytes'),
                 'from': sender
@@ -241,8 +311,11 @@ def register_socket_handlers(socketio):
         receiver = data.get('to')
         filename = data.get('fileName')
         total_size = data.get('totalSize', 0)
+        transfer_id = data.get('transferId')
         
-        if sender and receiver:
+        if transfer_id and transfer_id in active_transfers:
+            _record_transfer_completion(transfer_id)
+        elif sender and receiver:
             execute_query("UPDATE users SET sent = sent + 1 WHERE username = %s", (sender,))
             execute_query("UPDATE users SET received = received + 1 WHERE username = %s", (receiver,))
             execute_query(
@@ -252,16 +325,21 @@ def register_socket_handlers(socketio):
                 """,
                 (sender, receiver, filename, total_size, 'completed')
             )
-            emit('transfer_finished_sync', {'fileName': filename, 'from': sender}, room=receiver)
-            emit('transfer_finished_sync', {'fileName': filename, 'from': sender}, room=sender)
+            
+        emit('transfer_finished_sync', {'transferId': transfer_id, 'fileName': filename, 'from': sender}, room=receiver)
+        emit('transfer_finished_sync', {'transferId': transfer_id, 'fileName': filename, 'from': sender}, room=sender)
 
     @socketio.on('cancel_transfer')
     def handle_cancel_transfer(data):
         receiver = data.get('to')
         sender = session.get('username')
+        transfer_id = data.get('transferId')
+        if transfer_id and transfer_id in active_transfers:
+            active_transfers[transfer_id]['status'] = 'cancelled'
+            
         if receiver:
-            emit('transfer_cancelled', {'from': sender}, room=receiver)
-            emit('transfer_cancelled', {'from': sender}, room=sender)
+            emit('transfer_cancelled', {'transferId': transfer_id, 'from': sender}, room=receiver)
+            emit('transfer_cancelled', {'transferId': transfer_id, 'from': sender}, room=sender)
 
     @socketio.on('disconnect_user')
     def handle_disconnect_user(data):

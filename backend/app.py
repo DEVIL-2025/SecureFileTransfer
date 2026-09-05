@@ -4,9 +4,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO
 from backend.config import Config
 from backend.database.connection import init_db
-from backend.services.crypto_service import ensure_rsa_keys
 from backend.routes.auth_routes import auth_bp
-from backend.routes.file_routes import file_bp
 from backend.routes.user_routes import user_bp
 from backend.routes.contact_routes import contact_bp
 from backend.socket.transfer_socket import register_socket_handlers
@@ -42,22 +40,24 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(auth_bp)
-    app.register_blueprint(file_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(contact_bp)
     
     # Register real-time transfer socket events
     register_socket_handlers(socketio)
     
-    # Initialize Database and RSA Keys
+    # Initialize Database
     with app.app_context():
         init_db()
-        ensure_rsa_keys()
         
     # SPA Frontend fallback routes with proper caching headers
     @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
+    @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
     def serve_frontend(path):
+        # Return 404 for unmatched API endpoints
+        if path.startswith("api/") or path == "api":
+            return jsonify({"error": "Endpoint not found", "success": False}), 404
+
         dist_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
         
         # 1. Serve static asset files (JS, CSS, SVGs, images)

@@ -17,13 +17,13 @@ export default function Toast({ toast, onClose }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-slide-up">
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl max-w-md ${borders[toast.type || 'info']}`}>
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 animate-slide-up pointer-events-none flex justify-end">
+      <div className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl w-full sm:w-auto max-w-md ${borders[toast.type || 'info']}`}>
         {icons[toast.type || 'info']}
-        <p className="text-xs font-mono-code font-bold pr-2">{toast.message}</p>
+        <p className="text-xs font-mono-code font-bold pr-2 break-words flex-1">{toast.message}</p>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-[#EFE8E1] transition-colors text-[#7D6F73] hover:text-[#2D1B22] cursor-pointer ml-auto"
+          className="p-1 rounded-lg hover:bg-[#EFE8E1] transition-colors text-[#7D6F73] hover:text-[#2D1B22] cursor-pointer ml-auto shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

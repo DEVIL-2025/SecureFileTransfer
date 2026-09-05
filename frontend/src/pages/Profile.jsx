@@ -198,38 +198,38 @@ export default function Profile() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 pb-6 gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-6 gap-4">
         <div>
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
             ACCOUNT OVERVIEW
           </span>
-          <h1 className="text-3xl font-black text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
             User Profile
           </h1>
         </div>
 
         <button
           onClick={openEditModal}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer min-h-[38px]"
         >
           <Edit2 className="w-4 h-4" />
           <span>Edit Profile Details</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
         
         {/* Left Column: Account Details Card (Fixed height proportion) */}
-        <div className="soft-card p-6 sm:p-8 rounded-3xl space-y-6 flex flex-col justify-between border-slate-200">
+        <div className="soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-6 flex flex-col justify-between border-slate-200">
           <div className="space-y-6">
             
             {/* User Avatar & Identity */}
-            <div className="flex items-center gap-4 border-b border-slate-200 pb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#070B14] via-[#0F172A] to-[#1E293B] text-white flex items-center justify-center font-bold text-2xl shadow-xs">
+            <div className="flex items-center gap-3 sm:gap-4 border-b border-slate-200 pb-6">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#070B14] via-[#0F172A] to-[#1E293B] text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-xs shrink-0">
                 {(profile?.username || authUser?.username || 'U').charAt(0).toUpperCase()}
               </div>
-              <div className="overflow-hidden">
-                <h2 className="text-xl font-extrabold text-slate-900 truncate">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 truncate">
                   @{profile?.username || authUser?.username}
                 </h2>
                 <p className="text-xs font-medium text-slate-600 truncate">
@@ -244,49 +244,49 @@ export default function Profile() {
 
             {/* Profile Info Fields */}
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-slate-600 flex items-center gap-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-600 flex items-center gap-2 shrink-0">
                   <User className="w-4 h-4 text-slate-500" />
                   Username:
                 </span>
-                <span className="font-extrabold text-slate-900">@{profile?.username || authUser?.username}</span>
+                <span className="font-extrabold text-slate-900 truncate">@{profile?.username || authUser?.username}</span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-slate-600 flex items-center gap-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-600 flex items-center gap-2 shrink-0">
                   <Mail className="w-4 h-4 text-slate-500" />
                   Email:
                 </span>
-                <span className="font-extrabold text-slate-900 truncate max-w-[180px]">{profile?.email || authUser?.email}</span>
+                <span className="font-extrabold text-slate-900 truncate max-w-[140px] xs:max-w-[200px] sm:max-w-[160px] md:max-w-[200px]">{profile?.email || authUser?.email}</span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-slate-600 flex items-center gap-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-600 flex items-center gap-2 shrink-0">
                   <Clock className="w-4 h-4 text-slate-500" />
                   Member Since:
                 </span>
-                <span className="font-extrabold text-slate-900">
+                <span className="font-extrabold text-slate-900 truncate">
                   {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Active'}
                 </span>
               </div>
             </div>
 
             {/* Transfer Stats */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pt-2">
+              <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1">
                 <div className="flex items-center justify-center gap-1 text-slate-600 text-xs font-bold">
                   <Send className="w-3.5 h-3.5 text-slate-900" />
                   <span>Files Sent</span>
                 </div>
-                <p className="text-2xl font-black text-slate-900">{profile?.sent || 0}</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{profile?.sent || 0}</p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1">
+              <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1">
                 <div className="flex items-center justify-center gap-1 text-slate-600 text-xs font-bold">
                   <Download className="w-3.5 h-3.5 text-[#065F46]" />
                   <span>Received</span>
                 </div>
-                <p className="text-2xl font-black text-slate-900">{profile?.received || 0}</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{profile?.received || 0}</p>
               </div>
             </div>
 
@@ -294,19 +294,19 @@ export default function Profile() {
 
           <button
             onClick={openEditModal}
-            className="w-full mt-6 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-900 text-xs font-bold uppercase transition-all cursor-pointer"
+            className="w-full mt-6 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-900 text-xs font-bold uppercase transition-all cursor-pointer min-h-[38px]"
           >
             Update Account Settings
           </button>
         </div>
 
         {/* Right Column: Controlled Height Transfer History Activity */}
-        <div className="lg:col-span-2 soft-card p-6 sm:p-8 rounded-3xl space-y-6 border-slate-200 flex flex-col justify-between">
+        <div className="lg:col-span-2 soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-6 border-slate-200 flex flex-col justify-between">
           <div className="space-y-6">
             
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-3">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Transfer History ({filteredTransfers.length})
                 </h2>
                 {filteredTransfers.length > 5 && (
@@ -322,7 +322,7 @@ export default function Profile() {
                     ) : (
                       <>
                         <Maximize2 className="w-3.5 h-3.5" />
-                        <span>Expand View</span>
+                        <span>Expand</span>
                       </>
                     )}
                   </button>
@@ -332,7 +332,7 @@ export default function Profile() {
               {transfers.length > 0 && (
                 <button
                   onClick={() => setClearHistoryModal({ open: true, loading: false })}
-                  className="flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer self-start sm:self-auto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Clear History</span>
@@ -357,7 +357,7 @@ export default function Profile() {
                 Loading transfer history...
               </div>
             ) : transfers.length === 0 ? (
-              <div className="text-center py-16 text-slate-600 border border-dashed border-slate-300 rounded-2xl space-y-2 font-medium">
+              <div className="text-center py-12 sm:py-16 px-4 text-slate-600 border border-dashed border-slate-300 rounded-2xl space-y-2 font-medium">
                 <p className="font-bold text-slate-900">No transfer history yet</p>
                 <p className="text-xs">Your completed file transfers will be logged here.</p>
               </div>
@@ -368,11 +368,44 @@ export default function Profile() {
             ) : (
               <div className="space-y-4">
                 
-                {/* Scrollable / Controlled Viewport Table */}
-                <div className={`overflow-x-auto rounded-xl border border-slate-100 ${
+                {/* Mobile View: Cards (< sm) */}
+                <div className={`space-y-3 block sm:hidden ${
+                  isHistoryExpanded ? 'max-h-[500px] overflow-y-auto' : 'max-h-[350px] overflow-y-auto'
+                }`}>
+                  {visibleTransfers.map((t, idx) => {
+                    const isSender = t.sender === (profile?.username || authUser?.username);
+                    return (
+                      <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-bold text-slate-900 truncate max-w-[190px]" title={t.filename}>
+                            {t.filename}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#ECFDF5] text-[#065F46] font-bold text-[10px] shrink-0">
+                            {t.status || 'completed'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600 gap-2">
+                          <span className={`inline-flex items-center gap-1 font-bold truncate ${
+                            isSender ? 'text-slate-900' : 'text-[#065F46]'
+                          }`}>
+                            {isSender ? <Send className="w-3 h-3 shrink-0" /> : <Download className="w-3 h-3 shrink-0" />}
+                            {isSender ? 'To' : 'From'} @{isSender ? t.receiver : t.sender}
+                          </span>
+                          <span className="font-mono text-slate-500 shrink-0">{formatBytes(t.file_size)}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 text-right border-t border-slate-100 pt-1.5">
+                          {t.timestamp ? new Date(t.timestamp).toLocaleDateString() : 'Recent'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop View: Table (>= sm) */}
+                <div className={`hidden sm:block overflow-x-auto rounded-xl border border-slate-100 ${
                   isHistoryExpanded ? 'max-h-[500px] overflow-y-auto' : 'max-h-[300px] overflow-y-auto'
                 }`}>
-                  <table className="w-full text-left text-xs">
+                  <table className="min-w-[550px] w-full text-left text-xs">
                     <thead className="sticky top-0 bg-slate-100/95 backdrop-blur-xs z-10">
                       <tr className="border-b border-slate-200 text-slate-700 font-extrabold uppercase">
                         <th className="py-2.5 px-3">File</th>
@@ -557,18 +590,18 @@ export default function Profile() {
           </div>
 
           {/* Modal Action Buttons */}
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t border-slate-200">
             <button
               type="button"
               onClick={() => setEditModal((prev) => ({ ...prev, open: false, error: '' }))}
-              className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 text-xs font-bold uppercase cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 text-xs font-bold uppercase cursor-pointer text-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={editModal.loading}
-              className="px-5 py-2.5 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wider shadow-xs transition-all disabled:opacity-50 cursor-pointer text-center"
             >
               {editModal.loading ? 'Saving Changes...' : 'Save All Changes'}
             </button>
@@ -587,11 +620,11 @@ export default function Profile() {
             Are you sure you want to clear your transfer history logs? This action cannot be undone.
           </p>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setClearHistoryModal({ open: false, loading: false })}
-              className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 text-sm font-bold cursor-pointer text-center"
             >
               Cancel
             </button>
@@ -599,7 +632,7 @@ export default function Profile() {
               type="button"
               disabled={clearHistoryModal.loading}
               onClick={handleClearHistoryConfirm}
-              className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer text-center"
             >
               {clearHistoryModal.loading ? 'Clearing...' : 'Clear History'}
             </button>

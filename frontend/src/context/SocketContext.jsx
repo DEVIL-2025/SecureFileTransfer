@@ -35,6 +35,13 @@ function saveStoredPeers(peersSet) {
   } catch {}
 }
 
+function generateTransferId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+}
+
 function resolveMimeType(fileName, fallbackMime) {
   if (fallbackMime && fallbackMime !== 'application/octet-stream') {
     return fallbackMime;
@@ -111,6 +118,7 @@ export function SocketProvider({ children }) {
 
   const transferRef = useRef({
     file: null,
+    transferId: null,
     offset: 0,
     chunkSize: WEBRTC_RAW_CHUNK_SIZE,
     receivedChunks: [],
@@ -332,6 +340,9 @@ export function SocketProvider({ children }) {
     });
 
     newSocket.on('start_file_transfer', (data) => {
+      if (data && data.transferId) {
+        transferRef.current.transferId = data.transferId;
+      }
       startStreamingSender(newSocket, data);
     });
 
@@ -350,6 +361,10 @@ export function SocketProvider({ children }) {
       const t = transferRef.current;
       t.slidingWindowInFlight = Math.max(0, t.slidingWindowInFlight - 1);
       fillWebSocketPipeline(newSocket);
+    });
+
+    newSocket.on('receive_chunk_binary', async (meta, binaryBuffer) => {
+      await handleReceiveWebSocketBinaryChunk(meta, binaryBuffer, newSocket);
     });
 
     newSocket.on('receive_chunk', async (data) => {
@@ -482,24 +497,22 @@ export function SocketProvider({ children }) {
       const arrayBuffer = await slice.arrayBuffer();
 
       const sessionData = ecdhKeyPairsRef.current[t.peer];
-      let chunkPayload = arrayBuffer;
-      let ivString = '';
+      let payloadBuffer;
 
       if (sessionData && sessionData.sharedAesKey) {
-        const encrypted = await encryptChunk(sessionData.sharedAesKey, arrayBuffer);
-        chunkPayload = encrypted.ciphertext;
-        ivString = encrypted.iv;
+        payloadBuffer = await encryptChunkBinary(sessionData.sharedAesKey, arrayBuffer);
+      } else {
+        payloadBuffer = arrayBuffer;
       }
 
-      sock.emit('file_chunk', {
+      sock.emit('file_chunk_binary', {
         to: t.peer,
+        transferId: t.transferId,
         fileName: t.file.name,
-        chunk: chunkPayload,
-        iv: ivString,
         isLast: isLast,
         totalSize: t.file.size,
-        mimeType: t.file.type
-      });
+        mimeType: t.mimeType || t.file.type
+      }, payloadBuffer);
     }
   };
 
@@ -566,6 +579,53 @@ export function SocketProvider({ children }) {
     }
 
     if (isLast) {
+      finalizeReceivedFile(sock);
+    }
+  };
+
+  // --- WebSocket Binary Receiver Handler ---
+  const handleReceiveWebSocketBinaryChunk = async (meta, binaryBuffer, sock) => {
+    const t = transferRef.current;
+    t.totalSize = meta.totalSize || t.totalSize;
+    if (meta.fileName && !t.fileName) t.fileName = meta.fileName;
+    if (meta.mimeType && !t.mimeType) t.mimeType = meta.mimeType;
+    if (meta.transferId && !t.transferId) t.transferId = meta.transferId;
+
+    const senderPeer = meta.from || t.peer;
+    const sessionData = ecdhKeyPairsRef.current[senderPeer];
+    let decryptedBuffer;
+
+    try {
+      if (sessionData && sessionData.sharedAesKey) {
+        decryptedBuffer = await decryptChunkBinary(sessionData.sharedAesKey, binaryBuffer);
+      } else {
+        decryptedBuffer = binaryBuffer;
+      }
+    } catch (err) {
+      console.error('[E2EE] WebSocket Binary Decryption failed:', err);
+      decryptedBuffer = binaryBuffer;
+    }
+
+    t.receivedChunks.push(decryptedBuffer);
+    t.receivedSize += (decryptedBuffer.byteLength || 0);
+
+    sock.emit('ack_chunk', { to: meta.from || t.peer });
+    updateSpeedMetrics(t.receivedSize, t.totalSize, 'receiving');
+
+    const now = performance.now();
+    if (now - t.lastSyncTime > 150 || meta.isLast) {
+      t.lastSyncTime = now;
+      if (sock) {
+        sock.emit('transfer_progress_sync', {
+          to: t.peer,
+          transferId: t.transferId,
+          receivedBytes: t.receivedSize,
+          totalBytes: t.totalSize
+        });
+      }
+    }
+
+    if (meta.isLast) {
       finalizeReceivedFile(sock);
     }
   };
@@ -647,6 +707,7 @@ export function SocketProvider({ children }) {
     if (sock) {
       sock.emit('p2p_transfer_completed', {
         to: t.peer,
+        transferId: t.transferId,
         fileName: t.fileName,
         totalSize: t.totalSize
       });
@@ -684,9 +745,11 @@ export function SocketProvider({ children }) {
 
     const rtc = webrtcPeersRef.current[targetUser];
     const initialTransport = (rtc && rtc.isOpen) ? 'Direct' : 'Relay';
+    const transferId = generateTransferId();
 
     transferRef.current = {
       file: file,
+      transferId: transferId,
       offset: 0,
       chunkSize: WEBRTC_RAW_CHUNK_SIZE,
       receivedChunks: [],
@@ -724,6 +787,7 @@ export function SocketProvider({ children }) {
 
     socket.emit('file_send_request', {
       to: targetUser,
+      transferId: transferId,
       fileName: file.name,
       totalSize: file.size,
       mimeType: resolveMimeType(file.name, file.type),
@@ -741,6 +805,7 @@ export function SocketProvider({ children }) {
 
     transferRef.current = {
       file: null,
+      transferId: req.transferId,
       offset: 0,
       chunkSize: WEBRTC_RAW_CHUNK_SIZE,
       receivedChunks: [],
@@ -778,6 +843,7 @@ export function SocketProvider({ children }) {
 
     socket.emit('file_accept', {
       to: req.from,
+      transferId: req.transferId,
       fileName: req.fileName,
       totalSize: req.totalSize
     });
@@ -786,7 +852,10 @@ export function SocketProvider({ children }) {
 
   const rejectIncomingFile = () => {
     if (socket && incomingFileRequest) {
-      socket.emit('file_reject', { to: incomingFileRequest.from });
+      socket.emit('file_reject', {
+        to: incomingFileRequest.from,
+        transferId: incomingFileRequest.transferId
+      });
       setIncomingFileRequest(null);
     }
   };
@@ -794,7 +863,10 @@ export function SocketProvider({ children }) {
   const cancelTransfer = () => {
     if (socket && transferRef.current.peer) {
       transferRef.current.isCancelled = true;
-      socket.emit('cancel_transfer', { to: transferRef.current.peer });
+      socket.emit('cancel_transfer', {
+        to: transferRef.current.peer,
+        transferId: transferRef.current.transferId
+      });
       setTransferState((prev) => ({
         ...prev,
         active: false,

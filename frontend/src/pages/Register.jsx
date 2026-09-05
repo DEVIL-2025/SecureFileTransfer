@@ -39,8 +39,8 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md soft-card rounded-3xl p-8 sm:p-10 shadow-md space-y-6">
+    <div className="min-h-[80vh] flex items-center justify-center px-3 sm:px-4 py-8 sm:py-12">
+      <div className="w-full max-w-md soft-card rounded-2xl sm:rounded-3xl p-6 sm:p-10 shadow-md space-y-6">
         
         <div className="text-center space-y-2">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] border border-[#7DD3FC] text-[#0077B6] flex items-center justify-center shadow-xs">

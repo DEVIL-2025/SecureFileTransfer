@@ -47,7 +47,7 @@ export default function App() {
         <Router>
           <div className="min-h-screen text-slate-900 flex flex-col font-sans">
             <Navbar />
-            <main className="flex-1">
+            <main className="flex-1 w-full overflow-x-hidden">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route

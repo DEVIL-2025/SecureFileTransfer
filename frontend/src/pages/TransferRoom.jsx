@@ -87,10 +87,14 @@ export default function TransferRoom() {
     e.target.value = '';
   };
 
-  const enrichedContacts = contacts.map((c) => ({
-    ...c,
-    online: onlineUsers.includes(c.username)
-  }));
+  const enrichedContacts = contacts.map((c) => {
+    const cName = (c.username || '').toLowerCase();
+    const isOnline = onlineUsers ? onlineUsers.some((u) => (u || '').toLowerCase() === cName) : false;
+    return {
+      ...c,
+      online: isOnline
+    };
+  });
 
   const filteredContacts = enrichedContacts.filter((c) => {
     const q = searchFilter.toLowerCase();
@@ -101,38 +105,38 @@ export default function TransferRoom() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 pb-6 gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-6 gap-4">
         <div>
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
             FAST & SAFE SHARING
           </span>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-            <Radio className="w-8 h-8 text-slate-900 animate-pulse" />
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-2.5 sm:gap-3">
+            <Radio className="w-7 h-7 sm:w-8 h-8 text-slate-900 animate-pulse shrink-0" />
             Live File Transfer
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] text-xs font-extrabold shadow-xs">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse" />
+        <div className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] text-xs font-extrabold shadow-xs self-start sm:self-auto">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse shrink-0" />
           <span>Online as @{user?.username}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
         {/* Left Column: Contacts List */}
-        <div className="lg:col-span-2 soft-card p-6 sm:p-8 rounded-3xl space-y-6 border-slate-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-3">
+        <div className="lg:col-span-2 soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-6 border-slate-200">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between border-b border-slate-200 pb-4 gap-2 sm:gap-3">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-slate-900" />
-              <h2 className="text-lg font-bold text-slate-900">
+              <Users className="w-5 h-5 text-slate-900 shrink-0" />
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 My Contacts ({filteredContacts.length})
               </h2>
             </div>
             
             <Link
               to="/contacts"
-              className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1 self-start xs:self-auto"
             >
               <span>Add / Manage Contacts</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -156,7 +160,7 @@ export default function TransferRoom() {
               Loading your contacts...
             </div>
           ) : contacts.length === 0 ? (
-            <div className="text-center py-16 text-slate-600 border border-dashed border-slate-300 rounded-2xl space-y-3 font-medium">
+            <div className="text-center py-12 sm:py-16 px-4 text-slate-600 border border-dashed border-slate-300 rounded-2xl space-y-3 font-medium">
               <Users className="w-10 h-10 text-slate-400 mx-auto" />
               <p className="font-bold text-lg text-slate-900">No contacts yet</p>
               <p className="text-sm text-slate-600 max-w-sm mx-auto">
@@ -175,14 +179,14 @@ export default function TransferRoom() {
               No contacts match "{searchFilter}".
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {filteredContacts.map((contact) => {
                 const isConnected = connectedPeers.has(contact.username);
 
                 return (
                   <div
                     key={contact.username}
-                    className={`p-5 rounded-2xl border transition-all ${
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all ${
                       isConnected
                         ? 'bg-[#ECFDF5] border-[#A7F3D0] shadow-sm'
                         : contact.online
@@ -191,8 +195,8 @@ export default function TransferRoom() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm ${
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 ${
                           isConnected
                             ? 'bg-[#065F46] text-white'
                             : contact.online
@@ -201,8 +205,8 @@ export default function TransferRoom() {
                         }`}>
                           {contact.username.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <h4 className="font-extrabold text-sm text-slate-900">
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-sm text-slate-900 truncate">
                             @{contact.username}
                           </h4>
                           <span className={`text-xs font-bold ${
@@ -224,14 +228,14 @@ export default function TransferRoom() {
                           <button
                             onClick={() => handleSelectFileToTransfer(contact.username)}
                             disabled={transferState.active}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white text-xs font-bold uppercase transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white text-xs font-bold uppercase transition-all cursor-pointer disabled:opacity-50 shadow-xs min-h-[36px]"
                           >
                             <FileUp className="w-3.5 h-3.5" />
                             <span>Send File</span>
                           </button>
                           <button
                             onClick={() => disconnectPeer(contact.username)}
-                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase transition-all cursor-pointer"
+                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase transition-all cursor-pointer min-h-[36px]"
                           >
                             Disconnect
                           </button>
@@ -239,13 +243,13 @@ export default function TransferRoom() {
                       ) : contact.online ? (
                         <button
                           onClick={() => sendConnectionRequest(contact.username)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wide transition-all cursor-pointer shadow-xs"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl btn-gradient-primary text-white text-xs font-bold uppercase tracking-wide transition-all cursor-pointer shadow-xs min-h-[36px]"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           <span>Connect</span>
                         </button>
                       ) : (
-                        <div className="w-full text-center py-1.5 text-xs font-bold text-slate-500">
+                        <div className="w-full text-center py-2 text-xs font-bold text-slate-500 min-h-[36px] flex items-center justify-center">
                           Contact is offline
                         </div>
                       )}
@@ -258,10 +262,10 @@ export default function TransferRoom() {
         </div>
 
         {/* Right Column: Clean & Real-Time Transfer Progress */}
-        <div className="soft-card p-6 sm:p-8 rounded-3xl space-y-6 flex flex-col justify-between border-slate-200">
+        <div className="soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-6 flex flex-col justify-between border-slate-200">
           <div>
             <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 Transfer Progress
               </h2>
               <span className={`text-xs px-3 py-1 rounded-full font-bold ${
@@ -282,48 +286,48 @@ export default function TransferRoom() {
             {/* Dynamic Transfer Display */}
             {transferState.active || transferState.progress === 100 || transferState.fileName ? (
               <div className="space-y-4 text-xs">
-                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   
                   {/* Person */}
-                  <div className="flex items-center justify-between font-bold text-slate-700">
-                    <span className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-between font-bold text-slate-700 gap-2">
+                    <span className="flex items-center gap-1.5 shrink-0">
                       {transferState.mode === 'sending' ? (
-                        <ArrowUpCircle className="w-4 h-4 text-slate-900" />
+                        <ArrowUpCircle className="w-4 h-4 text-slate-900 shrink-0" />
                       ) : (
-                        <ArrowDownCircle className="w-4 h-4 text-[#065F46]" />
+                        <ArrowDownCircle className="w-4 h-4 text-[#065F46] shrink-0" />
                       )}
                       <span>{transferState.mode === 'sending' ? 'Sending to:' : 'Receiving from:'}</span>
                     </span>
-                    <span className="font-extrabold text-slate-900">
+                    <span className="font-extrabold text-slate-900 truncate">
                       @{transferState.peer || 'Contact'}
                     </span>
                   </div>
 
                   {/* File Name */}
-                  <div className="flex items-center justify-between font-bold text-slate-700">
-                    <span>File:</span>
-                    <span className="font-extrabold text-slate-900 max-w-[180px] truncate" title={transferState.fileName}>
+                  <div className="flex items-center justify-between font-bold text-slate-700 gap-2">
+                    <span className="shrink-0">File:</span>
+                    <span className="font-extrabold text-slate-900 truncate max-w-[150px] xs:max-w-[200px]" title={transferState.fileName}>
                       {transferState.fileName}
                     </span>
                   </div>
 
                   {/* Size Progress */}
-                  <div className="flex items-center justify-between font-bold text-slate-700">
-                    <span>Size:</span>
-                    <span className="font-extrabold text-slate-900 font-mono">
+                  <div className="flex items-center justify-between font-bold text-slate-700 gap-2">
+                    <span className="shrink-0">Size:</span>
+                    <span className="font-extrabold text-slate-900 font-mono truncate">
                       {formatBytes(transferState.transferredBytes)} of {formatBytes(transferState.fileSize)}
                     </span>
                   </div>
 
                   {/* Live Speed & Remaining Time */}
                   {transferState.active && (
-                    <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between font-bold text-[11px]">
+                    <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-1.5 font-bold text-[11px]">
                       <span className="text-[#059669] flex items-center gap-1 font-extrabold">
-                        <Zap className="w-3.5 h-3.5 text-[#10B981]" />
+                        <Zap className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
                         {transferState.speedText || 'Measuring speed...'}
                       </span>
                       <span className="text-slate-600 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
                         {transferState.etaText || 'Calculating...'}
                       </span>
                     </div>
@@ -345,10 +349,10 @@ export default function TransferRoom() {
 
                   {/* Percentage */}
                   <div className="flex items-center justify-between text-xs font-black text-slate-900 pt-1">
-                    <span className="text-xs font-bold text-slate-600">
+                    <span className="text-xs font-bold text-slate-600 truncate pr-2">
                       {transferState.statusText}
                     </span>
-                    <span>{transferState.progress}%</span>
+                    <span className="shrink-0">{transferState.progress}%</span>
                   </div>
                 </div>
 
@@ -357,9 +361,9 @@ export default function TransferRoom() {
                   <a
                     href={transferState.downloadUrl}
                     download={transferState.downloadName || transferState.fileName}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white font-bold text-xs uppercase transition-all shadow-xs cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white font-bold text-xs uppercase transition-all shadow-xs cursor-pointer min-h-[40px] text-center"
                   >
-                    <ArrowDownCircle className="w-4 h-4" />
+                    <ArrowDownCircle className="w-4 h-4 shrink-0" />
                     <span>Open / Save {transferState.downloadName || 'File'}</span>
                   </a>
                 )}
@@ -368,14 +372,14 @@ export default function TransferRoom() {
                 {transferState.active && (
                   <button
                     onClick={cancelTransfer}
-                    className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs uppercase transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs uppercase transition-all cursor-pointer min-h-[40px]"
                   >
                     Cancel Transfer
                   </button>
                 )}
               </div>
             ) : (
-              <div className="p-8 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-xs space-y-2 font-medium">
+              <div className="p-6 sm:p-8 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-xs space-y-2 font-medium">
                 <HardDrive className="w-8 h-8 text-slate-400 mx-auto" />
                 <p className="font-bold text-slate-900 text-sm">Ready to Transfer</p>
                 <p>Connect with any online contact to send or receive files.</p>
@@ -383,9 +387,9 @@ export default function TransferRoom() {
             )}
           </div>
 
-          <div className="border-t border-slate-200 pt-4 text-xs text-slate-700 space-y-1.5 font-medium">
+          <div className="border-t border-slate-200 pt-4 text-xs text-slate-700 space-y-1.5 font-medium mt-6">
             <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#065F46]" />
+              <ShieldCheck className="w-4 h-4 text-[#065F46] shrink-0" />
               Direct & Private
             </h4>
             <p className="leading-relaxed">
@@ -415,16 +419,16 @@ export default function TransferRoom() {
             User <span className="font-bold text-slate-900">@{incomingRequest}</span> wants to connect and share files with you.
           </p>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
             <button
               onClick={rejectConnectionRequest}
-              className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 font-bold cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 font-bold cursor-pointer text-center"
             >
               Decline
             </button>
             <button
               onClick={acceptConnectionRequest}
-              className="px-5 py-2 rounded-xl btn-gradient-primary text-white font-bold shadow-xs transition-all cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl btn-gradient-primary text-white font-bold shadow-xs transition-all cursor-pointer text-center"
             >
               Accept
             </button>
@@ -440,32 +444,32 @@ export default function TransferRoom() {
       >
         <div className="space-y-4 text-sm text-slate-800 font-medium">
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <div className="flex justify-between">
-              <span>From:</span>
-              <span className="font-bold text-slate-900">@{incomingFileRequest?.from}</span>
+            <div className="flex justify-between gap-2">
+              <span className="shrink-0">From:</span>
+              <span className="font-bold text-slate-900 truncate">@{incomingFileRequest?.from}</span>
             </div>
-            <div className="flex justify-between">
-              <span>File:</span>
-              <span className="font-bold text-slate-900 truncate max-w-[200px]">{incomingFileRequest?.fileName}</span>
+            <div className="flex justify-between gap-2">
+              <span className="shrink-0">File:</span>
+              <span className="font-bold text-slate-900 truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[240px]">{incomingFileRequest?.fileName}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Size:</span>
+            <div className="flex justify-between gap-2">
+              <span className="shrink-0">Size:</span>
               <span className="font-bold text-slate-900 font-mono">
                 {formatBytes(incomingFileRequest?.totalSize)}
               </span>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
             <button
               onClick={rejectIncomingFile}
-              className="px-4 py-2 rounded-xl text-slate-700 hover:text-slate-900 font-bold cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-700 hover:text-slate-900 font-bold cursor-pointer text-center"
             >
               Decline
             </button>
             <button
               onClick={acceptIncomingFile}
-              className="px-5 py-2 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white font-bold shadow-xs transition-all cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#065F46] hover:bg-[#044734] text-white font-bold shadow-xs transition-all cursor-pointer text-center"
             >
               Accept & Download
             </button>

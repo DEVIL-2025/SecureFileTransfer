@@ -12,29 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Files Table (Encrypted Cloud Storage)
-CREATE TABLE IF NOT EXISTS files (
-    id SERIAL PRIMARY KEY,
-    filename VARCHAR(255) NOT NULL,
-    original_filename VARCHAR(255) NOT NULL,
-    file_size BIGINT DEFAULT 0,
-    mime_type VARCHAR(100) DEFAULT 'application/octet-stream',
-    username VARCHAR(80) NOT NULL,
-    file_key TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. Shared Files Table (Sharing Permissions)
-CREATE TABLE IF NOT EXISTS shared_files (
-    id SERIAL PRIMARY KEY,
-    file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
-    shared_by VARCHAR(80) NOT NULL,
-    shared_with VARCHAR(80) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_file_share UNIQUE (file_id, shared_with)
-);
-
--- 4. Transfers Table (Real-time Transfer History)
+-- 2. Transfers Table (Real-time Transfer History)
 CREATE TABLE IF NOT EXISTS transfers (
     id SERIAL PRIMARY KEY,
     sender VARCHAR(80) NOT NULL,
@@ -77,8 +55,6 @@ CREATE TABLE IF NOT EXISTS user_contacts (
 );
 
 -- Indexes for high-performance querying
-CREATE INDEX IF NOT EXISTS idx_files_username ON files(username);
-CREATE INDEX IF NOT EXISTS idx_shared_files_with ON shared_files(shared_with);
 CREATE INDEX IF NOT EXISTS idx_transfers_sender ON transfers(sender);
 CREATE INDEX IF NOT EXISTS idx_transfers_receiver ON transfers(receiver);
 CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_logs(username);

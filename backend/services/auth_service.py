@@ -125,9 +125,6 @@ def update_user_profile(current_username, new_username=None, new_email=None, cur
             return False, "Username is already taken.", None
             
         execute_query("UPDATE users SET username = %s WHERE username = %s", (new_username, current_username))
-        execute_query("UPDATE files SET username = %s WHERE username = %s", (new_username, current_username))
-        execute_query("UPDATE shared_files SET shared_by = %s WHERE shared_by = %s", (new_username, current_username))
-        execute_query("UPDATE shared_files SET shared_with = %s WHERE shared_with = %s", (new_username, current_username))
         execute_query("UPDATE transfers SET sender = %s WHERE sender = %s", (new_username, current_username))
         execute_query("UPDATE transfers SET receiver = %s WHERE receiver = %s", (new_username, current_username))
         execute_query("UPDATE connection_keys SET owner_username = %s WHERE owner_username = %s", (new_username, current_username))

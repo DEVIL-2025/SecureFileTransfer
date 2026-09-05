@@ -17,35 +17,35 @@ export default function Home() {
   const { user } = useAuth();
 
   return (
-    <div className="space-y-20 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="space-y-12 sm:space-y-20 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* Hero Section */}
-      <section className="text-center max-w-3xl mx-auto space-y-6 pt-4">
+      <section className="text-center max-w-3xl mx-auto space-y-5 sm:space-y-6 pt-2 sm:pt-4">
         
         {/* Pill Tag */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full badge-blue text-xs font-extrabold uppercase tracking-wider shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-slate-900" />
-          <span>Simple, Safe & Private File Sharing</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full badge-blue text-[11px] sm:text-xs font-extrabold uppercase tracking-wider shadow-xs max-w-full">
+          <Sparkles className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+          <span className="truncate">Simple, Safe & Private File Sharing</span>
         </div>
 
         {/* Crisp Headline */}
-        <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-tight sm:leading-tight">
-          Send files directly to anyone, <br />
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight sm:leading-tight">
+          Send files directly to anyone, <br className="hidden sm:inline" />
           <span className="text-gradient-dark">fast and private.</span>
         </h1>
 
         {/* High-Contrast Subtitle */}
-        <p className="text-base sm:text-lg text-slate-700 leading-relaxed max-w-2xl mx-auto font-medium">
-          Transfer files in real time directly between browsers, or save your important documents safely in your own private cloud storage.
+        <p className="text-sm sm:text-lg text-slate-700 leading-relaxed max-w-2xl mx-auto font-medium px-1">
+          Stream files in real time directly between authenticated browsers with 100% private zero-server-storage End-to-End Encryption.
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 sm:pt-4 w-full max-w-md sm:max-w-none mx-auto">
           {user ? (
             <>
               <Link
                 to="/transfer"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl btn-gradient-primary font-bold text-sm shadow-md transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl btn-gradient-primary font-bold text-sm shadow-md transition-all"
               >
                 <Radio className="w-4 h-4" />
                 <span>Open Live Transfer</span>
@@ -53,7 +53,7 @@ export default function Home() {
               </Link>
               <Link
                 to="/contacts"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl soft-card hover:bg-white text-slate-900 font-bold text-sm transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl soft-card hover:bg-white text-slate-900 font-bold text-sm transition-all"
               >
                 <Users className="w-4 h-4 text-slate-900" />
                 <span>My Contacts</span>
@@ -63,14 +63,14 @@ export default function Home() {
             <>
               <Link
                 to="/register"
-                className="flex items-center gap-2 px-7 py-3.5 rounded-2xl btn-gradient-primary font-bold text-sm shadow-md transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl btn-gradient-primary font-bold text-sm shadow-md transition-all"
               >
                 <span>Get Started — Free</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 to="/login"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl soft-card hover:bg-white text-slate-900 font-bold text-sm transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl soft-card hover:bg-white text-slate-900 font-bold text-sm transition-all"
               >
                 <span>Sign In</span>
               </Link>
@@ -91,9 +91,9 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           
-          <div className="soft-card p-7 rounded-3xl space-y-3">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#070B14] to-[#1E293B] text-white flex items-center justify-center font-black text-lg shadow-xs">
               1
             </div>
@@ -103,7 +103,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="soft-card p-7 rounded-3xl space-y-3">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-300 text-slate-900 flex items-center justify-center font-black text-lg shadow-xs">
               2
             </div>
@@ -113,7 +113,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="soft-card p-7 rounded-3xl space-y-3">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] flex items-center justify-center font-black text-lg shadow-xs">
               3
             </div>
@@ -127,7 +127,7 @@ export default function Home() {
       </section>
 
       {/* Features Grid */}
-      <section className="space-y-8 pt-4">
+      <section className="space-y-6 sm:space-y-8 pt-2 sm:pt-4">
         <div className="text-center space-y-2">
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
             KEY FEATURES
@@ -137,9 +137,9 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           
-          <div className="soft-card p-7 rounded-3xl flex items-start gap-4">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl flex items-start gap-4">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-[#070B14] to-[#1E293B] text-white shrink-0 shadow-xs">
               <Zap className="w-6 h-6" />
             </div>
@@ -151,7 +151,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="soft-card p-7 rounded-3xl flex items-start gap-4">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl flex items-start gap-4">
             <div className="p-3 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] shrink-0">
               <Lock className="w-6 h-6" />
             </div>
@@ -163,19 +163,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="soft-card p-7 rounded-3xl flex items-start gap-4">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl flex items-start gap-4">
             <div className="p-3 rounded-2xl bg-slate-100 border border-slate-300 text-slate-900 shrink-0">
-              <HardDrive className="w-6 h-6" />
+              <ShieldCheck className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-base font-bold text-slate-900">Private Cloud Storage</h4>
+              <h4 className="text-base font-bold text-slate-900">Zero Server Storage</h4>
               <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                Save your private documents online safely and download them whenever you need.
+                Your files never touch server disks or cloud storage. Pure client-side streaming direct to your recipient.
               </p>
             </div>
           </div>
 
-          <div className="soft-card p-7 rounded-3xl flex items-start gap-4">
+          <div className="soft-card p-5 sm:p-7 rounded-3xl flex items-start gap-4">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-[#070B14] to-[#1E293B] text-white shrink-0 shadow-xs">
               <Users className="w-6 h-6" />
             </div>
@@ -191,7 +191,7 @@ export default function Home() {
       </section>
 
       {/* CTA Card */}
-      <section className="soft-card p-8 sm:p-12 rounded-3xl text-center space-y-6 bg-white shadow-sm">
+      <section className="soft-card p-6 sm:p-12 rounded-3xl text-center space-y-6 bg-white shadow-sm">
         <div className="space-y-2 max-w-md mx-auto">
           <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
             Ready to send your files safely?
