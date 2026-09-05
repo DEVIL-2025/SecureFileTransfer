@@ -15,7 +15,7 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 KEY_CHARSET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
 def _get_utc_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc)
 
 def _hash_key(raw_key: str) -> str:
     """Normalizes and hashes raw key with SHA-256."""
@@ -89,26 +89,28 @@ def get_active_connection_key(owner_username: str):
         return None
         
     expires_at = row.get('expires_at') if isinstance(row, dict) else row[1]
+    now = _get_utc_now()
     if isinstance(expires_at, str):
         try:
-            exp_dt = datetime.fromisoformat(expires_at.replace("Z", ""))
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
         except Exception:
             try:
-                exp_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                exp_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
             except Exception:
-                exp_dt = _get_utc_now()
+                exp_dt = now
     else:
         exp_dt = expires_at
         
     if hasattr(exp_dt, 'tzinfo') and exp_dt.tzinfo is not None:
-        exp_dt = exp_dt.astimezone(timezone.utc).replace(tzinfo=None)
+        exp_dt_utc = exp_dt.astimezone(timezone.utc)
+    else:
+        exp_dt_utc = exp_dt.replace(tzinfo=timezone.utc)
         
-    now = _get_utc_now()
-    if exp_dt < now:
+    if exp_dt_utc < now:
         return None
         
-    remaining_seconds = max(0, int((exp_dt - now).total_seconds()))
-    iso_str = exp_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    remaining_seconds = max(0, int((exp_dt_utc - now).total_seconds()))
+    iso_str = exp_dt_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
         'has_active_key': True,
         'expires_at': iso_str,
@@ -151,28 +153,31 @@ def consume_connection_key(consumer_username: str, raw_key: str, client_ip: str 
     if used_at is not None:
         _record_failed_attempt(rate_limit_key)
         return False, "This connection key has already been used.", None
+
+    if consumer_username == owner_username:
+        _record_failed_attempt(rate_limit_key)
+        return False, "You cannot connect with your own key.", None
         
+    now = _get_utc_now()
     if isinstance(expires_at, str):
         try:
-            exp_dt = datetime.fromisoformat(expires_at.replace("Z", ""))
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
         except Exception:
             try:
-                exp_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+                exp_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
             except Exception:
-                exp_dt = _get_utc_now()
+                exp_dt = now
     else:
         exp_dt = expires_at
         
     if hasattr(exp_dt, 'tzinfo') and exp_dt.tzinfo is not None:
-        exp_dt = exp_dt.astimezone(timezone.utc).replace(tzinfo=None)
+        exp_dt_utc = exp_dt.astimezone(timezone.utc)
+    else:
+        exp_dt_utc = exp_dt.replace(tzinfo=timezone.utc)
         
-    if exp_dt < _get_utc_now():
+    if exp_dt_utc < now:
         _record_failed_attempt(rate_limit_key)
         return False, "This connection key has expired. Ask the user to generate a new key.", None
-        
-    if consumer_username == owner_username:
-        _record_failed_attempt(rate_limit_key)
-        return False, "You cannot connect with your own key.", None
         
     u_a = min(consumer_username, owner_username)
     u_b = max(consumer_username, owner_username)

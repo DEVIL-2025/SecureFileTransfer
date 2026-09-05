@@ -74,16 +74,55 @@ def init_db():
             except Exception:
                 conn.rollback()
 
-        # 3. Final column migrations
+        # 3. Final column migrations and schema alignment
         postgres_migrations = [
             "ALTER TABLE files ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255) DEFAULT '';",
             "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;",
             "ALTER TABLE files ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) DEFAULT 'application/octet-stream';",
             "ALTER TABLE files ADD COLUMN IF NOT EXISTS file_key TEXT DEFAULT '';",
             "ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE files ADD COLUMN IF NOT EXISTS username VARCHAR(80);",
+            "ALTER TABLE files ALTER COLUMN owner_id DROP NOT NULL;",
+            "ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS shared_by VARCHAR(80);",
+            "ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS shared_with VARCHAR(80);",
+            "ALTER TABLE shared_files ALTER COLUMN shared_by_id DROP NOT NULL;",
+            "ALTER TABLE shared_files ALTER COLUMN shared_with_id DROP NOT NULL;",
             "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;",
             "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'completed';",
-            "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"
+            "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS sender VARCHAR(80);",
+            "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS receiver VARCHAR(80);",
+            "ALTER TABLE transfers ALTER COLUMN sender_id DROP NOT NULL;",
+            "ALTER TABLE transfers ALTER COLUMN receiver_id DROP NOT NULL;",
+            "ALTER TABLE connection_keys ADD COLUMN IF NOT EXISTS owner_username VARCHAR(80);",
+            "ALTER TABLE connection_keys ADD COLUMN IF NOT EXISTS used_by VARCHAR(80);",
+            "ALTER TABLE connection_keys ALTER COLUMN owner_id DROP NOT NULL;",
+            "ALTER TABLE connection_keys ALTER COLUMN used_by_id DROP NOT NULL;",
+            "ALTER TABLE user_contacts ADD COLUMN IF NOT EXISTS user_a VARCHAR(80);",
+            "ALTER TABLE user_contacts ADD COLUMN IF NOT EXISTS user_b VARCHAR(80);",
+            "ALTER TABLE user_contacts ALTER COLUMN user_a_id DROP NOT NULL;",
+            "ALTER TABLE user_contacts ALTER COLUMN user_b_id DROP NOT NULL;",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS username VARCHAR(80);",
+            # Backfills
+            "UPDATE files f SET username = u.username FROM users u WHERE f.owner_id = u.id AND (f.username IS NULL OR f.username = '');",
+            "UPDATE shared_files sf SET shared_by = u.username FROM users u WHERE sf.shared_by_id = u.id AND (sf.shared_by IS NULL OR sf.shared_by = '');",
+            "UPDATE shared_files sf SET shared_with = u.username FROM users u WHERE sf.shared_with_id = u.id AND (sf.shared_with IS NULL OR sf.shared_with = '');",
+            "UPDATE transfers t SET sender = u.username FROM users u WHERE t.sender_id = u.id AND (t.sender IS NULL OR t.sender = '');",
+            "UPDATE transfers t SET receiver = u.username FROM users u WHERE t.receiver_id = u.id AND (t.receiver IS NULL OR t.receiver = '');",
+            "UPDATE connection_keys ck SET owner_username = u.username FROM users u WHERE ck.owner_id = u.id AND (ck.owner_username IS NULL OR ck.owner_username = '');",
+            "UPDATE connection_keys ck SET used_by = u.username FROM users u WHERE ck.used_by_id = u.id AND (ck.used_by IS NULL OR ck.used_by = '');",
+            "UPDATE user_contacts uc SET user_a = u.username FROM users u WHERE uc.user_a_id = u.id AND (uc.user_a IS NULL OR uc.user_a = '');",
+            "UPDATE user_contacts uc SET user_b = u.username FROM users u WHERE uc.user_b_id = u.id AND (uc.user_b IS NULL OR uc.user_b = '');",
+            # Performance Indexes
+            "CREATE INDEX IF NOT EXISTS idx_files_username ON files(username);",
+            "CREATE INDEX IF NOT EXISTS idx_shared_files_with ON shared_files(shared_with);",
+            "CREATE INDEX IF NOT EXISTS idx_transfers_sender ON transfers(sender);",
+            "CREATE INDEX IF NOT EXISTS idx_transfers_receiver ON transfers(receiver);",
+            "CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_logs(username);",
+            "CREATE INDEX IF NOT EXISTS idx_conn_keys_owner ON connection_keys(owner_username);",
+            "CREATE INDEX IF NOT EXISTS idx_conn_keys_expires ON connection_keys(expires_at);",
+            "CREATE INDEX IF NOT EXISTS idx_contacts_user_a ON user_contacts(user_a);",
+            "CREATE INDEX IF NOT EXISTS idx_contacts_user_b ON user_contacts(user_b);"
         ]
         for stmt in postgres_migrations:
             try:
@@ -92,4 +131,4 @@ def init_db():
             except Exception:
                 conn.rollback()
                 
-    print("Database initialized successfully (PostgreSQL).")
+    print("Database initialized and aligned successfully (PostgreSQL).")
