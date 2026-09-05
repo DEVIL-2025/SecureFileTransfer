@@ -33,6 +33,50 @@ def get_profile():
         'lastActive': 'Online now'
     }), 200
 
+@user_bp.route('/dashboard-stats', methods=['GET'])
+def get_dashboard_stats():
+    auth_err = login_required_check()
+    if auth_err:
+        return auth_err
+        
+    username = session['username']
+    user = execute_query(
+        "SELECT username, email, sent, received, created_at FROM users WHERE username = %s",
+        (username,),
+        fetchone=True
+    )
+    if not user:
+        return jsonify({'error': 'User profile not found.'}), 404
+        
+    contacts_count = execute_query(
+        "SELECT COUNT(*) as count FROM user_contacts WHERE user_a = %s OR user_b = %s",
+        (username, username),
+        fetchone=True
+    )
+    
+    transfers_stats = execute_query(
+        """
+        SELECT 
+            COUNT(*) as total_transfers,
+            COALESCE(SUM(file_size), 0) as total_bytes
+        FROM transfers 
+        WHERE sender = %s OR receiver = %s
+        """,
+        (username, username),
+        fetchone=True
+    )
+    
+    return jsonify({
+        'username': user.get('username') if isinstance(user, dict) else user[0],
+        'email': user.get('email') if isinstance(user, dict) else user[1],
+        'sent': user.get('sent', 0) if isinstance(user, dict) else user[2],
+        'received': user.get('received', 0) if isinstance(user, dict) else user[3],
+        'totalContacts': contacts_count.get('count', 0) if isinstance(contacts_count, dict) else (contacts_count[0] if contacts_count else 0),
+        'totalTransfers': transfers_stats.get('total_transfers', 0) if isinstance(transfers_stats, dict) else (transfers_stats[0] if transfers_stats else 0),
+        'totalBytes': int(transfers_stats.get('total_bytes', 0)) if isinstance(transfers_stats, dict) else (int(transfers_stats[1]) if transfers_stats else 0)
+    }), 200
+
+
 @user_bp.route('/transfers', methods=['GET'])
 def get_recent_transfers():
     auth_err = login_required_check()

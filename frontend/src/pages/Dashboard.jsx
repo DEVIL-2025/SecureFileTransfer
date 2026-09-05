@@ -6,10 +6,10 @@ import api from '../api/client';
 import Modal from '../components/Modal';
 import Toast from '../components/Toast';
 import {
-  Zap,
+  Send,
   ArrowUpRight,
   ArrowDownLeft,
-  ShieldCheck,
+  HardDrive,
   Search,
   Trash2,
   ArrowRight,
@@ -17,8 +17,7 @@ import {
   File,
   CheckCircle2,
   Users,
-  Activity,
-  Radio
+  RefreshCw
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -32,6 +31,13 @@ function formatBytes(bytes) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { onlineUsers } = useSocket() || {};
+  const [stats, setStats] = useState({
+    sent: 0,
+    received: 0,
+    totalContacts: 0,
+    totalTransfers: 0,
+    totalBytes: 0
+  });
   const [transfers, setTransfers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +50,15 @@ export default function Dashboard() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/users/dashboard-stats');
+      setStats(res.data || {});
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
+    }
   };
 
   const fetchContacts = async () => {
@@ -67,9 +82,14 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchTransfers();
+  const refreshAll = () => {
+    fetchStats();
     fetchContacts();
+    fetchTransfers();
+  };
+
+  useEffect(() => {
+    refreshAll();
   }, []);
 
   const handleClearHistory = async () => {
@@ -79,11 +99,18 @@ export default function Dashboard() {
       showToast(res.data.message || 'Transfer history cleared.');
       setClearModal({ open: false, loading: false });
       setTransfers([]);
+      fetchStats();
     } catch (err) {
       showToast(err.message || 'Failed to clear transfer history', 'error');
       setClearModal({ open: false, loading: false });
     }
   };
+
+  const myName = (user?.username || '').toLowerCase();
+  const onlineContactsCount = contacts.filter((c) => {
+    const cName = (c.username || '').toLowerCase();
+    return cName !== myName && onlineUsers && onlineUsers.some((u) => (u || '').toLowerCase() === cName);
+  }).length;
 
   const filteredTransfers = transfers.filter((t) => {
     const q = searchQuery.toLowerCase();
@@ -99,25 +126,21 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-cyan-200/80 pb-6 gap-4">
         <div>
-          <span className="text-xs font-extrabold uppercase tracking-wider text-[#0077B6]">
-            REAL-TIME TRANSFERS
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-2.5 sm:gap-3 font-serif">
-            <Activity className="w-7 h-7 sm:w-8 sm:h-8 text-[#0077B6] shrink-0" />
-            <span>Transfer Activity Hub</span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-serif">
+            Dashboard
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 font-semibold mt-1">
-            Zero server file storage. All transfers stream directly between authenticated peers with End-to-End Encryption.
+          <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+            Welcome back, <span className="font-bold text-slate-900">@{user?.username}</span>. Here is an overview of your transfers and contacts.
           </p>
         </div>
 
-        {/* Quick Launch Button */}
+        {/* Start Transfer Button */}
         <Link
           to="/transfer"
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-white shadow-md transition-all btn-gradient-primary cursor-pointer hover:shadow-lg"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-white shadow-md transition-all btn-gradient-primary cursor-pointer hover:shadow-lg text-sm"
         >
-          <Zap className="w-5 h-5 text-amber-300 fill-amber-300" />
-          <span>Start Live Transfer</span>
+          <Send className="w-4 h-4" />
+          <span>Start Transfer</span>
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -127,92 +150,64 @@ export default function Dashboard() {
         {/* Files Sent */}
         <div className="soft-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-cyan-50 border border-cyan-200 text-[#0077B6] shrink-0">
-            <ArrowUpRight className="w-6 h-6" />
+            <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Files Sent</p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{user?.sent ?? 0}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{stats.sent}</p>
           </div>
         </div>
 
         {/* Files Received */}
         <div className="soft-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 shrink-0">
-            <ArrowDownLeft className="w-6 h-6" />
+            <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Files Received</p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{user?.received ?? 0}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{stats.received}</p>
           </div>
         </div>
 
-        {/* Online Contacts */}
+        {/* Contacts */}
         <div className="soft-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 shrink-0">
-            <Users className="w-6 h-6" />
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Online Contacts</p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">
-              {(() => {
-                const myName = (user?.username || '').toLowerCase();
-                return contacts.filter((c) => {
-                  const cName = (c.username || '').toLowerCase();
-                  return (
-                    cName !== myName &&
-                    onlineUsers &&
-                    onlineUsers.some((u) => (u || '').toLowerCase() === cName)
-                  );
-                }).length;
-              })()}
-            </p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contacts</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{stats.totalContacts}</p>
+              {onlineContactsCount > 0 ? (
+                <span className="text-[11px] font-bold text-emerald-600">({onlineContactsCount} online)</span>
+              ) : (
+                <span className="text-[11px] font-bold text-slate-400">(0 online)</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Security Architecture */}
+        {/* Total Data Transferred */}
         <div className="soft-card p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-violet-50 border border-violet-200 text-violet-600 shrink-0">
-            <ShieldCheck className="w-6 h-6" />
+            <HardDrive className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Storage</p>
-            <p className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">0% Server Disk</p>
-            <p className="text-[10px] text-slate-500 font-bold">100% Client E2EE</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Transferred</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-serif">{formatBytes(stats.totalBytes)}</p>
           </div>
         </div>
-      </div>
-
-      {/* Quick Launch Banner */}
-      <div className="soft-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-50 via-sky-50 to-white border border-cyan-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="p-3 rounded-2xl bg-[#0077B6] text-white shadow-md shrink-0">
-            <Radio className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-black text-slate-900 font-serif">Instant Device-to-Device Streaming</h2>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">
-              Select any contact or enter a connection key to transfer documents, videos, photos, and archives without size limits or server storage.
-            </p>
-          </div>
-        </div>
-        <Link
-          to="/transfer"
-          className="self-stretch sm:self-auto px-5 py-2.5 rounded-xl bg-[#0077B6] hover:bg-[#005f92] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer shrink-0"
-        >
-          <span>Open Transfer Room</span>
-          <ArrowRight className="w-4 h-4" />
-        </Link>
       </div>
 
       {/* Transfer History Section */}
       <div className="soft-card p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-cyan-100 pb-4 gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
-              <Clock className="w-5 h-5 text-[#0077B6]" />
-              <span>Transfer History</span>
-              <span className="text-xs text-slate-600 font-bold">({filteredTransfers.length})</span>
+            <Clock className="w-5 h-5 text-[#0077B6]" />
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 font-serif">
+              Recent Transfers
             </h2>
+            <span className="text-xs text-slate-600 font-bold">({filteredTransfers.length})</span>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -227,6 +222,15 @@ export default function Dashboard() {
                 className="w-full pl-9 pr-3 py-1.5 soft-input rounded-xl text-xs sm:text-sm font-semibold placeholder:text-slate-500 outline-none"
               />
             </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={refreshAll}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center justify-center cursor-pointer shrink-0"
+              title="Refresh transfers"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
 
             {/* Clear History Button */}
             {transfers.length > 0 && (
@@ -244,7 +248,7 @@ export default function Dashboard() {
 
         {loading ? (
           <div className="text-center py-12 text-slate-600 font-semibold text-sm">
-            Loading transfer activity...
+            Loading transfers...
           </div>
         ) : filteredTransfers.length === 0 ? (
           <div className="text-center py-12 text-slate-600 font-medium border border-dashed border-cyan-200 rounded-2xl text-sm px-4 space-y-3">
@@ -262,7 +266,7 @@ export default function Dashboard() {
             {/* Mobile Cards View (< sm) */}
             <div className="space-y-3 sm:hidden">
               {filteredTransfers.map((t, idx) => {
-                const isSender = t.sender === user?.username;
+                const isSender = (t.sender || '').toLowerCase() === myName;
                 const peerName = isSender ? t.receiver : t.sender;
                 return (
                   <div key={idx} className="p-4 rounded-2xl border border-cyan-100 bg-white shadow-2xs space-y-2.5">
@@ -306,7 +310,7 @@ export default function Dashboard() {
                 <thead className="text-slate-700 uppercase text-xs font-bold border-b border-cyan-100">
                   <tr>
                     <th className="py-3 px-3 font-serif">File Name</th>
-                    <th className="py-3 px-3 font-serif">Type / Peer</th>
+                    <th className="py-3 px-3 font-serif">Direction / Peer</th>
                     <th className="py-3 px-3 font-serif">Size</th>
                     <th className="py-3 px-3 font-serif">Date & Time</th>
                     <th className="py-3 px-3 text-right font-serif">Status</th>
@@ -314,7 +318,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y divide-cyan-50/50">
                   {filteredTransfers.map((t, idx) => {
-                    const isSender = t.sender === user?.username;
+                    const isSender = (t.sender || '').toLowerCase() === myName;
                     const peerName = isSender ? t.receiver : t.sender;
                     return (
                       <tr key={idx} className="hover:bg-cyan-50/40 transition-colors">
